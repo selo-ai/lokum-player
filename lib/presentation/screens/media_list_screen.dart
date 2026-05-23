@@ -239,9 +239,9 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
     final Map<String, List<dynamic>> vodGroups = {
       'GÜNLÜK DİZİLER': [],
       'TÜRKÇE': [],
-      'DİJİTAL PLATFORMLAR': [],
-      'DEUTSCHE (ALMANCA)': [],
+      'DEUTSCHE': [],
       'GENEL / DİĞER': [],
+      'MULTİ SERİES': [],
     };
     
     if (widget.contentType != 'live') {
@@ -249,6 +249,30 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
         if (cat.id.isEmpty || cat.name == 'Tümü') continue;
         
         final norm = _normalizeCategoryName(cat.name);
+        
+        final isGerman = norm.contains('deutsch') || 
+                         norm.contains('german') || 
+                         norm == 'de' || 
+                         norm.startsWith('de ') || 
+                         norm.startsWith('de-') || 
+                         norm.startsWith('de|') || 
+                         norm.contains(' de ') || 
+                         norm.contains(' de-') || 
+                         norm.contains(' de|') || 
+                         norm.contains('alman');
+
+        final isPlatform = norm.contains('disney') || 
+                           norm.contains('exxen') || 
+                           norm.contains('mubi') || 
+                           norm.contains('netflix') || 
+                           norm.contains('blutv') || 
+                           norm.contains('amazon') || 
+                           norm.contains('prime') || 
+                           norm.contains('tabii') || 
+                           norm.contains('gain') || 
+                           norm.contains('apple') || 
+                           norm.contains('tod');
+
         if (norm.contains('imdb')) {
           imdbCategories.add(cat);
         } else if (norm.contains('yeni') || norm.contains('new') || norm.contains('guncel') || norm.contains('2024') || norm.contains('2025') || norm.contains('2026')) {
@@ -263,6 +287,14 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                    norm.contains('gunluk') || 
                    norm.contains('daily')) {
           vodGroups['GÜNLÜK DİZİLER']!.add(cat);
+        } else if (norm.contains('multi') || norm.contains('multı')) {
+          vodGroups['MULTİ SERİES']!.add(cat);
+        } else if (isPlatform) {
+          if (isGerman) {
+            vodGroups['DEUTSCHE']!.add(cat);
+          } else {
+            vodGroups['TÜRKÇE']!.add(cat);
+          }
         } else if (norm == 'tr' || 
                    norm.startsWith('tr ') || 
                    norm.startsWith('tr-') || 
@@ -271,30 +303,10 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                    norm.contains(' tr-') || 
                    norm.contains(' tr|') || 
                    norm.contains('turk') || 
-                   norm.contains('yerli') ||
-                   norm.contains('exxen') ||
-                   norm.contains('mubi')) {
+                   norm.contains('yerli')) {
           vodGroups['TÜRKÇE']!.add(cat);
-        } else if (norm == 'de' || 
-                   norm.startsWith('de ') || 
-                   norm.startsWith('de-') || 
-                   norm.startsWith('de|') || 
-                   norm.contains(' de ') || 
-                   norm.contains(' de-') || 
-                   norm.contains(' de|') || 
-                   norm.contains('alman') || 
-                   norm.contains('deutsche') || 
-                   norm.contains('german')) {
-          vodGroups['DEUTSCHE (ALMANCA)']!.add(cat);
-        } else if (norm.contains('disney') || 
-                   norm.contains('netflix') || 
-                   norm.contains('blutv') || 
-                   norm.contains('amazon') || 
-                   norm.contains('prime') || 
-                   norm.contains('tabii') || 
-                   norm.contains('gain') || 
-                   norm.contains('apple')) {
-          vodGroups['DİJİTAL PLATFORMLAR']!.add(cat);
+        } else if (isGerman) {
+          vodGroups['DEUTSCHE']!.add(cat);
         } else {
           vodGroups['GENEL / DİĞER']!.add(cat);
         }
@@ -493,7 +505,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                                     String displayName = cat.name;
                                     if (label == 'TÜRKÇE') {
                                       displayName = cat.name.replaceFirst(RegExp(r'^(TR\s*[\-\|]?\s*|TÜRK\s*|TURK\s*)', caseSensitive: false), '').trim();
-                                    } else if (label == 'DEUTSCHE (ALMANCA)') {
+                                    } else if (label == 'DEUTSCHE') {
                                       displayName = cat.name.replaceFirst(RegExp(r'^(DE\s*[\-\|]?\s*|ALMAN\s*|DEUTSCHE\s*|GERMAN\s*)', caseSensitive: false), '').trim();
                                     }
                                     return _buildDrawerCategoryItem(
