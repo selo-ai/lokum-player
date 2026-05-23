@@ -902,6 +902,38 @@ const Map<String, Map<String, String>> _translations = {
     'pt': 'Alternativas',
     'zh': '备用源',
   },
+  'update_all': {
+    'tr': 'Tümünü Güncelle',
+    'en': 'Update All',
+    'de': 'Alles aktualisieren',
+    'es': 'Actualizar todo',
+    'pt': 'Atualizar tudo',
+    'zh': '更新全部',
+  },
+  'updating': {
+    'tr': 'Tüm İçerik Güncelleniyor...',
+    'en': 'Updating All Content...',
+    'de': 'Aktualisiere alle Inhalte...',
+    'es': 'Actualizando todo el contenido...',
+    'pt': 'Atualizando todo o conteúdo...',
+    'zh': '正在更新所有内容...',
+  },
+  'update_success': {
+    'tr': 'İçerik başarıyla güncellendi!',
+    'en': 'Content updated successfully!',
+    'de': 'Inhalt erfolgreich aktualisiert!',
+    'es': '¡Contenido actualizado con éxito!',
+    'pt': 'Conteúdo atualizado com sucesso!',
+    'zh': '内容已成功更新！',
+  },
+  'update_error': {
+    'tr': 'Güncelleme sırasında hata oluştu!',
+    'en': 'An error occurred during update!',
+    'de': 'Fehler beim Aktualisieren!',
+    'es': '¡Ocurrió un error al actualizar!',
+    'pt': 'Ocorreu um erro ao atualizar!',
+    'zh': '更新时出错！',
+  },
 };
 
 extension RefL10nExtension on WidgetRef {
