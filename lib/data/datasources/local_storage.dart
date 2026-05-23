@@ -1,0 +1,148 @@
+import 'package:hive_flutter/hive_flutter.dart';
+import '../models/iptv_models.dart';
+
+class LocalStorage {
+  static const String _boxName = 'iptv_storage_box';
+  static const String _keyCredentials = 'credentials';
+  static const String _keyFavoritesLive = 'favorites_live';
+  static const String _keyFavoritesMovie = 'favorites_movie';
+  static const String _keyFavoritesSeries = 'favorites_series';
+  static const String _keyHistory = 'history';
+  static const String _keyLanguage = 'app_language';
+
+
+  late Box _box;
+
+  Future<void> init() async {
+    await Hive.initFlutter();
+    _box = await Hive.openBox(_boxName);
+  }
+
+  // --- Credentials ---
+  Future<void> saveCredentials(IptvCredentials creds) async {
+    await _box.put(_keyCredentials, creds.toJson());
+  }
+
+  IptvCredentials? getCredentials() {
+    final raw = _box.get(_keyCredentials);
+    if (raw == null) return null;
+    return IptvCredentials.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  Future<void> clearCredentials() async {
+    await _box.delete(_keyCredentials);
+    await _box.delete(_keyFavoritesLive);
+    await _box.delete(_keyFavoritesMovie);
+    await _box.delete(_keyFavoritesSeries);
+    await _box.delete(_keyHistory);
+  }
+
+  // --- Favorites: Live Channels ---
+  List<int> getFavoriteLiveIds() {
+    final list = _box.get(_keyFavoritesLive);
+    if (list == null) return [];
+    return List<int>.from(list);
+  }
+
+  Future<void> toggleFavoriteLive(int streamId) async {
+    final list = getFavoriteLiveIds();
+    if (list.contains(streamId)) {
+      list.remove(streamId);
+    } else {
+      list.add(streamId);
+    }
+    await _box.put(_keyFavoritesLive, list);
+  }
+
+  bool isFavoriteLive(int streamId) {
+    return getFavoriteLiveIds().contains(streamId);
+  }
+
+  // --- Favorites: Movies ---
+  List<int> getFavoriteMovieIds() {
+    final list = _box.get(_keyFavoritesMovie);
+    if (list == null) return [];
+    return List<int>.from(list);
+  }
+
+  Future<void> toggleFavoriteMovie(int streamId) async {
+    final list = getFavoriteMovieIds();
+    if (list.contains(streamId)) {
+      list.remove(streamId);
+    } else {
+      list.add(streamId);
+    }
+    await _box.put(_keyFavoritesMovie, list);
+  }
+
+  bool isFavoriteMovie(int streamId) {
+    return getFavoriteMovieIds().contains(streamId);
+  }
+
+  // --- Favorites: Series ---
+  List<int> getFavoriteSeriesIds() {
+    final list = _box.get(_keyFavoritesSeries);
+    if (list == null) return [];
+    return List<int>.from(list);
+  }
+
+  Future<void> toggleFavoriteSeries(int seriesId) async {
+    final list = getFavoriteSeriesIds();
+    if (list.contains(seriesId)) {
+      list.remove(seriesId);
+    } else {
+      list.add(seriesId);
+    }
+    await _box.put(_keyFavoritesSeries, list);
+  }
+
+  bool isFavoriteSeries(int seriesId) {
+    return getFavoriteSeriesIds().contains(seriesId);
+  }
+
+  // --- Watch History ---
+  List<Map<String, dynamic>> getHistory() {
+    final raw = _box.get(_keyHistory);
+    if (raw == null) return [];
+    return List<Map<String, dynamic>>.from(
+      (raw as List).map((item) => Map<String, dynamic>.from(item)),
+    );
+  }
+
+  Future<void> addToHistory({
+    required String type, // 'live', 'movie', 'episode'
+    required int id,
+    required String name,
+    String? icon,
+    String? extra, // e.g. "S01E03" for episodes
+  }) async {
+    var history = getHistory();
+    // Remove if already exists to put it at the top
+    history.removeWhere((item) => item['id'] == id && item['type'] == type);
+    
+    history.insert(0, {
+      'type': type,
+      'id': id,
+      'name': name,
+      'icon': icon,
+      'extra': extra,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+
+    // Limit to last 30 items
+    if (history.length > 30) {
+      history = history.sublist(0, 30);
+    }
+
+    await _box.put(_keyHistory, history);
+  }
+
+  // --- Language Preference ---
+  String? getLanguage() {
+    return _box.get(_keyLanguage) as String?;
+  }
+
+  Future<void> saveLanguage(String languageCode) async {
+    await _box.put(_keyLanguage, languageCode);
+  }
+}
