@@ -191,9 +191,17 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
     return countryMap[code.toUpperCase()] ?? '🌐 ${code.toUpperCase()}';
   }
 
-
-
-
+  String _normalizeCategoryName(String text) {
+    return text
+        .toLowerCase()
+        .replaceAll('ı', 'i')
+        .replaceAll('i̇', 'i')
+        .replaceAll('ğ', 'g')
+        .replaceAll('ü', 'u')
+        .replaceAll('ş', 's')
+        .replaceAll('ö', 'o')
+        .replaceAll('ç', 'c');
+  }
 
   Widget _buildCategoryDrawer(
     List<dynamic> categories,
@@ -224,7 +232,80 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
 
     final String allText = ref.tr('category_all');
     final String titleText = ref.tr('category_title');
-    final selectedCatId = ref.watch(iptvControllerProvider).selectedLiveCategoryId;
+    
+    // Group VOD categories
+    final List<dynamic> yeniCategories = [];
+    final List<dynamic> imdbCategories = [];
+    final Map<String, List<dynamic>> vodGroups = {
+      'GÜNLÜK DİZİLER': [],
+      'TÜRKÇE': [],
+      'DİJİTAL PLATFORMLAR': [],
+      'DEUTSCHE (ALMANCA)': [],
+      'GENEL / DİĞER': [],
+    };
+    
+    if (widget.contentType != 'live') {
+      for (final cat in categories) {
+        if (cat.id.isEmpty || cat.name == 'Tümü') continue;
+        
+        final norm = _normalizeCategoryName(cat.name);
+        if (norm.contains('imdb')) {
+          imdbCategories.add(cat);
+        } else if (norm.contains('yeni') || norm.contains('new') || norm.contains('guncel') || norm.contains('2024') || norm.contains('2025') || norm.contains('2026')) {
+          yeniCategories.add(cat);
+        } else if (norm.contains('pazartesi') || 
+                   norm.contains('sali') || 
+                   norm.contains('carsamba') || 
+                   norm.contains('persembe') || 
+                   norm.contains('cuma') || 
+                   norm.contains('cumartesi') || 
+                   norm.contains('pazar') || 
+                   norm.contains('gunluk') || 
+                   norm.contains('daily')) {
+          vodGroups['GÜNLÜK DİZİLER']!.add(cat);
+        } else if (norm == 'tr' || 
+                   norm.startsWith('tr ') || 
+                   norm.startsWith('tr-') || 
+                   norm.startsWith('tr|') || 
+                   norm.contains(' tr ') || 
+                   norm.contains(' tr-') || 
+                   norm.contains(' tr|') || 
+                   norm.contains('turk') || 
+                   norm.contains('yerli') ||
+                   norm.contains('exxen') ||
+                   norm.contains('mubi')) {
+          vodGroups['TÜRKÇE']!.add(cat);
+        } else if (norm == 'de' || 
+                   norm.startsWith('de ') || 
+                   norm.startsWith('de-') || 
+                   norm.startsWith('de|') || 
+                   norm.contains(' de ') || 
+                   norm.contains(' de-') || 
+                   norm.contains(' de|') || 
+                   norm.contains('alman') || 
+                   norm.contains('deutsche') || 
+                   norm.contains('german')) {
+          vodGroups['DEUTSCHE (ALMANCA)']!.add(cat);
+        } else if (norm.contains('disney') || 
+                   norm.contains('netflix') || 
+                   norm.contains('blutv') || 
+                   norm.contains('amazon') || 
+                   norm.contains('prime') || 
+                   norm.contains('tabii') || 
+                   norm.contains('gain') || 
+                   norm.contains('apple')) {
+          vodGroups['DİJİTAL PLATFORMLAR']!.add(cat);
+        } else {
+          vodGroups['GENEL / DİĞER']!.add(cat);
+        }
+      }
+    }
+    
+    final selectedCatId = widget.contentType == 'live' 
+        ? ref.watch(iptvControllerProvider).selectedLiveCategoryId
+        : (widget.contentType == 'movie'
+            ? ref.watch(iptvControllerProvider).selectedMovieCategoryId
+            : ref.watch(iptvControllerProvider).selectedSeriesCategoryId);
 
     return Drawer(
       backgroundColor: Colors.transparent,
@@ -280,14 +361,167 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                         title: '📺  ${allText.toUpperCase()}',
                         isSelected: selectedCatId.isEmpty,
                         onTap: () {
-                          controller.selectLiveCategory('');
+                          if (widget.contentType == 'live') {
+                            controller.selectLiveCategory('');
+                          } else if (widget.contentType == 'movie') {
+                            controller.selectMovieCategory('');
+                          } else {
+                            controller.selectSeriesCategory('');
+                          }
                           Navigator.of(context).pop();
                         },
                       ),
-                      const SizedBox(height: 4),
+                      if (widget.contentType != 'live') ...[
+                        // Yeni Categories (Flat Links)
+                        ...yeniCategories.map((cat) {
+                          final isSelected = cat.id == selectedCatId;
+                          return _buildDrawerCategoryItem(
+                            title: cat.name,
+                            isSelected: isSelected,
+                            onTap: () {
+                              if (widget.contentType == 'movie') {
+                                controller.selectMovieCategory(cat.id);
+                              } else {
+                                controller.selectSeriesCategory(cat.id);
+                              }
+                              Navigator.of(context).pop();
+                            },
+                          );
+                        }),
+                        if (yeniCategories.isNotEmpty) const SizedBox(height: 4),
 
-                      // Country accordion groups
-                      ...sortedCountryCodes.map((code) {
+                        // IMDb Categories (Flat Links)
+                        ...imdbCategories.map((cat) {
+                          final isSelected = cat.id == selectedCatId;
+                          final cleanTitle = cat.name.replaceFirst(RegExp(r'^(TR\s*[\-\|]?\s*|TÜRK\s*|TURK\s*)', caseSensitive: false), '').trim();
+                          return _buildDrawerCategoryItem(
+                            title: cleanTitle,
+                            isSelected: isSelected,
+                            onTap: () {
+                              if (widget.contentType == 'movie') {
+                                controller.selectMovieCategory(cat.id);
+                              } else {
+                                controller.selectSeriesCategory(cat.id);
+                              }
+                              Navigator.of(context).pop();
+                            },
+                          );
+                        }),
+                        if (imdbCategories.isNotEmpty) const SizedBox(height: 4),
+
+                        // VOD Categories with Accordion
+                        ...vodGroups.entries.where((e) => e.value.isNotEmpty).map((entry) {
+                          final label = entry.key;
+                          final subcats = entry.value;
+                          final isExpanded = _expandedCountries.contains(label);
+                          final hasSelectedChild = subcats.any((c) => c.id == selectedCatId);
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Group header (tap to expand/collapse)
+                              Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: hasSelectedChild
+                                      ? AppColors.primary.withOpacity(0.08)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () {
+                                    setState(() {
+                                      if (isExpanded) {
+                                        _expandedCountries.remove(label);
+                                      } else {
+                                        _expandedCountries.add(label);
+                                      }
+                                    });
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            label,
+                                            style: TextStyle(
+                                              color: hasSelectedChild ? Colors.white : AppColors.textSecondary,
+                                              fontWeight: hasSelectedChild ? FontWeight.bold : FontWeight.w600,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                        // Category count badge
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surfaceLight.withOpacity(0.5),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            '${subcats.length}',
+                                            style: const TextStyle(
+                                              color: AppColors.textMuted,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        AnimatedRotation(
+                                          turns: isExpanded ? 0.25 : 0,
+                                          duration: const Duration(milliseconds: 200),
+                                          child: Icon(
+                                            Icons.chevron_right_rounded,
+                                            color: hasSelectedChild ? AppColors.primary : AppColors.textMuted,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Sub-categories (animated expand)
+                              AnimatedCrossFade(
+                                firstChild: const SizedBox.shrink(),
+                                secondChild: Column(
+                                  children: subcats.map((cat) {
+                                    final isSelected = cat.id == selectedCatId;
+                                    String displayName = cat.name;
+                                    if (label == 'TÜRKÇE') {
+                                      displayName = cat.name.replaceFirst(RegExp(r'^(TR\s*[\-\|]?\s*|TÜRK\s*|TURK\s*)', caseSensitive: false), '').trim();
+                                    } else if (label == 'DEUTSCHE (ALMANCA)') {
+                                      displayName = cat.name.replaceFirst(RegExp(r'^(DE\s*[\-\|]?\s*|ALMAN\s*|DEUTSCHE\s*|GERMAN\s*)', caseSensitive: false), '').trim();
+                                    }
+                                    return _buildDrawerCategoryItem(
+                                      title: displayName,
+                                      isSelected: isSelected,
+                                      indent: true,
+                                      onTap: () {
+                                        if (widget.contentType == 'movie') {
+                                          controller.selectMovieCategory(cat.id);
+                                        } else {
+                                          controller.selectSeriesCategory(cat.id);
+                                        }
+                                        Navigator.of(context).pop();
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                                crossFadeState: isExpanded
+                                    ? CrossFadeState.showSecond
+                                    : CrossFadeState.showFirst,
+                                duration: const Duration(milliseconds: 200),
+                              ),
+                            ],
+                          );
+                        }),
+                      ] else ...[
+                        // Country accordion groups for Live TV
+                        ...sortedCountryCodes.map((code) {
                         final label = _getCountryLabel(code);
                         final subcats = countryGroups[code]!;
                         final isExpanded = _expandedCountries.contains(code);
@@ -485,8 +719,9 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                           );
                         }),
                       ],
-                    ],
-                  ),
+                    ], // Closes else ...[
+                  ], // Closes children: [
+                ),
                 ),
               ],
             ),
@@ -592,7 +827,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      drawer: (widget.contentType == 'live' && categories.isNotEmpty) ? _buildCategoryDrawer(categories, controller) : null,
+      drawer: categories.isNotEmpty ? _buildCategoryDrawer(categories, controller) : null,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -605,8 +840,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                 crossFadeState: _isSearchActive ? CrossFadeState.showSecond : CrossFadeState.showFirst,
                 firstChild: Row(
                   children: [
-                    if (widget.contentType == 'live') ...[
-                      // Hamburger menu icon + KATEGORİLER text (Live TV only)
+                      // Hamburger menu icon + KATEGORİLER text
                       Builder(
                         builder: (context) => InkWell(
                           onTap: () => Scaffold.of(context).openDrawer(),
@@ -637,28 +871,6 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                           ),
                         ),
                       ),
-                    ] else ...[
-                      // Simple title for Movies / Series
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.borderDark),
-                        ),
-                        child: Text(
-                          widget.contentType == 'movie' 
-                              ? ref.tr('tab_movies').toUpperCase()
-                              : ref.tr('tab_series').toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ),
-                    ],
                     const Spacer(),
                     // Favorites Toggle button
                     InkWell(
@@ -698,7 +910,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     // Search icon button
                     IconButton(
                       icon: const Icon(Icons.search_rounded, color: Colors.white, size: 24),
