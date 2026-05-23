@@ -9,7 +9,7 @@ class LocalStorage {
   static const String _keyFavoritesSeries = 'favorites_series';
   static const String _keyHistory = 'history';
   static const String _keyLanguage = 'app_language';
-
+  static const String _keyEpgEnabled = 'epg_enabled';
 
   late Box _box;
 
@@ -142,7 +142,17 @@ class LocalStorage {
     return _box.get(_keyLanguage) as String?;
   }
 
-  Future<void> saveLanguage(String languageCode) async {
-    await _box.put(_keyLanguage, languageCode);
+  Future<void> saveLanguage(String langCode) async {
+    await _box.put(_keyLanguage, langCode);
+  }
+
+  // --- Settings: EPG ---
+  bool isEpgEnabled() {
+    // Default to false since many providers don't support it or it's heavy
+    return _box.get(_keyEpgEnabled, defaultValue: false);
+  }
+
+  Future<void> setEpgEnabled(bool enabled) async {
+    await _box.put(_keyEpgEnabled, enabled);
   }
 }

@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/colors.dart';
 import '../../data/models/iptv_models.dart';
 import '../controllers/iptv_controller.dart';
+import '../controllers/providers.dart';
 import '../controllers/language_provider.dart';
 import '../widgets/glass_container.dart';
 import 'player_screen.dart';
@@ -214,8 +215,8 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   List<GroupedLiveChannel> _groupChannels(List<IptvLiveChannel> channels) {
     final Map<String, List<IptvLiveChannel>> groups = {};
     for (final channel in channels) {
-      final name = channel.baseName;
-      groups.putIfAbsent(name, () => []).add(channel);
+      final groupKey = '${channel.categoryId}_${channel.baseName}';
+      groups.putIfAbsent(groupKey, () => []).add(channel);
     }
 
     final priority = ['fhd', '1080p', 'hd', '720p', 'hq', 'hevc', 'h265', 'sd', 'yedek', 'backup', 'alt'];
@@ -230,14 +231,14 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     }
 
     final List<GroupedLiveChannel> groupedList = [];
-    groups.forEach((baseName, variations) {
+    groups.forEach((groupKey, variations) {
       variations.sort((a, b) {
         final pA = getPriority(a.qualityLabel);
         final pB = getPriority(b.qualityLabel);
         if (pA != pB) return pA.compareTo(pB);
         return a.displayName.compareTo(b.displayName);
       });
-      groupedList.add(GroupedLiveChannel(baseName: baseName, variations: variations));
+      groupedList.add(GroupedLiveChannel(baseName: variations.first.baseName, variations: variations));
     });
 
     groupedList.sort((a, b) => a.mainChannel.num.compareTo(b.mainChannel.num));

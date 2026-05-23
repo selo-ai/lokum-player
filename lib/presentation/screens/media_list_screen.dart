@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/colors.dart';
 import '../../data/models/iptv_models.dart';
 import '../controllers/iptv_controller.dart';
+import '../controllers/providers.dart';
 import '../controllers/language_provider.dart';
 import 'player_screen.dart';
 
@@ -830,8 +831,8 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
     final channels = items.cast<IptvLiveChannel>();
     final Map<String, List<IptvLiveChannel>> groups = {};
     for (final channel in channels) {
-      final name = channel.baseName;
-      groups.putIfAbsent(name, () => []).add(channel);
+      final groupKey = '${channel.categoryId}_${channel.baseName}';
+      groups.putIfAbsent(groupKey, () => []).add(channel);
     }
 
     final priority = ['fhd', '1080p', 'hd', '720p', 'hq', 'hevc', 'h265', 'sd', 'yedek', 'backup', 'alt'];
@@ -846,14 +847,14 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
     }
 
     final List<GroupedLiveChannel> groupedList = [];
-    groups.forEach((baseName, variations) {
+    groups.forEach((groupKey, variations) {
       variations.sort((a, b) {
         final pA = getPriority(a.qualityLabel);
         final pB = getPriority(b.qualityLabel);
         if (pA != pB) return pA.compareTo(pB);
         return a.displayName.compareTo(b.displayName);
       });
-      groupedList.add(GroupedLiveChannel(baseName: baseName, variations: variations));
+      groupedList.add(GroupedLiveChannel(baseName: variations.first.baseName, variations: variations));
     });    groupedList.sort((a, b) => a.mainChannel.num.compareTo(b.mainChannel.num));
     return groupedList;
   }
@@ -1395,6 +1396,7 @@ class _GroupedChannelTileState extends ConsumerState<GroupedChannelTile> {
     final variations = group.variations;
     final hasMultiple = variations.length > 1;
 
+    final isEpgEnabled = ref.watch(epgEnabledProvider);
     final favList = ref.watch(iptvControllerProvider.select((s) => s.favoriteLive));
     final isAnyFav = variations.any((v) => favList.any((c) => c.streamId == v.streamId));
 
@@ -1444,14 +1446,16 @@ class _GroupedChannelTileState extends ConsumerState<GroupedChannelTile> {
             ),
             title: Text(
               group.baseName,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: isEpgEnabled ? 14 : 16, color: Colors.white),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4.0),
-              child: ChannelEpgText(streamId: mainChannel.streamId),
-            ),
+            subtitle: isEpgEnabled 
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: ChannelEpgText(streamId: mainChannel.streamId),
+                  )
+                : null,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

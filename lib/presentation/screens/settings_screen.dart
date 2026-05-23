@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/language_provider.dart';
+import '../controllers/providers.dart';
 import '../widgets/glass_container.dart';
 import 'login_screen.dart';
 
@@ -174,6 +175,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                         trailing: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary, size: 28),
                         onTap: () => _showLanguageSelectorDialog(context),
+                      ),
+                      const Divider(color: AppColors.borderDark, height: 24),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        activeColor: AppColors.primary,
+                        title: Text(
+                          ref.watch(languageProvider).name == 'tr' ? 'EPG (TV Rehberi) Desteği' : 'EPG (TV Guide) Support',
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          ref.watch(languageProvider).name == 'tr' ? 'Canlı kanallar için yayın akışı bilgisini getir' : 'Fetch program guide for live channels',
+                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                        value: ref.watch(epgEnabledProvider),
+                        onChanged: (val) {
+                          ref.read(epgEnabledProvider.notifier).setEnabled(val);
+                        },
                       ),
                     ],
                   ),
