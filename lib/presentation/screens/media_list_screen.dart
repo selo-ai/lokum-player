@@ -9,6 +9,20 @@ import '../controllers/providers.dart';
 import '../controllers/language_provider.dart';
 import 'player_screen.dart';
 
+const String RECENTLY_ADDED_ID = 'RECENTLY_ADDED_CUSTOM_ID';
+
+class VirtualDailySeries {
+  final String baseName;
+  final IptvMovie representative;
+  final List<IptvMovie> episodes;
+
+  VirtualDailySeries({
+    required this.baseName,
+    required this.representative,
+    required this.episodes,
+  });
+}
+
 class MediaListScreen extends ConsumerStatefulWidget {
   final String contentType; // 'live', 'movie', 'series'
 
@@ -23,6 +37,9 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
   bool _isSearchActive = false;
   bool _showOnlyFavorites = false;
   final Set<String> _expandedCountries = {};
+  int _movieGridColumns = 2; // Default to 2-column layout (can be 2, 3, or 4)
+  int _seriesGridColumns = 2; // Default to 2-column layout for series (can be 2, 3, or 4)
+  int _liveGridColumns = 1; // Default to list layout for Live TV
 
   @override
   void initState() {
@@ -203,9 +220,75 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
         .replaceAll('ç', 'c');
   }
 
+  bool _isDailySeriesCategory(String name) {
+    final norm = _normalizeCategoryName(name);
+    return norm.contains('pazartesi') || 
+           norm.contains('sali') || 
+           norm.contains('carsamba') || 
+           norm.contains('persembe') || 
+           norm.contains('cuma') || 
+           norm.contains('cumartesi') || 
+           norm.contains('pazar') || 
+           norm.contains('gunluk') || 
+           norm.contains('daily');
+  }
+
+  String _getDailySeriesBaseName(String name) {
+    var cleaned = name;
+    
+    // Remove parenthesized or bracketed info like (Final), (Yeni), [1080p]
+    cleaned = cleaned.replaceAll(RegExp(r'[\(\[][^\)\]]*(?:final|yeni|new|fhd|hd|1080p|720p)[^\)\]]*[\)\]]', caseSensitive: false), '');
+    
+    // Strip patterns like "1. Bölüm", "125. Bölüm", "Bölüm 12", "12.Bölüm", "12. Bolum", "S01E02", "E02", "Ep 5", "Episode 12"
+    cleaned = cleaned.replaceFirst(RegExp(r'\b(?:s\d+\s*e\d+|e\d+|ep(?:isode)?\s*\d+|\d+\.?\s*(?:bölüm|bolum|ep)\b|(?:bölüm|bolum|ep)\s*\d+)', caseSensitive: false), '');
+    
+    // Strip trailing space + digit (representing episode number)
+    cleaned = cleaned.replaceFirst(RegExp(r'\s+\d+$'), '');
+    
+    // Clean up any remaining trailing punctuation/spaces
+    cleaned = cleaned.replaceAll(RegExp(r'\s+[\-\|]\s*$'), ''); // strip trailing dash/pipe
+    return cleaned.trim();
+  }
+
+  int _extractEpisodeNumber(String name) {
+    final match = RegExp(
+      r'\b(?:bölüm|bolum|ep|episode)\s*(\d+)|\b(\d+)\.?\s*(?:bölüm|bolum|ep)\b',
+      caseSensitive: false,
+    ).firstMatch(name);
+
+    if (match != null) {
+      final numStr = match.group(1) ?? match.group(2);
+      if (numStr != null) {
+        return int.tryParse(numStr) ?? 999999;
+      }
+    }
+
+    final trailingMatch = RegExp(r'\b(\d+)\s*$').firstMatch(name);
+    if (trailingMatch != null) {
+      return int.tryParse(trailingMatch.group(1)!) ?? 999999;
+    }
+
+    return 999999;
+  }
+
+  void _showDailySeriesEpisodesSheet(BuildContext context, VirtualDailySeries series) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) {
+        return DailySeriesDetailSheet(series: series);
+      },
+    );
+  }
+
   Widget _buildCategoryDrawer(
     List<dynamic> categories,
     dynamic controller,
+    int recentCount,
   ) {
     // Group categories by country code
     final Map<String, List<dynamic>> countryGroups = {};
@@ -384,6 +467,52 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                         },
                       ),
                       if (widget.contentType != 'live') ...[
+                        _buildDrawerCategoryItem(
+                          title: '🔥 SON EKLENENLER',
+                          isSelected: selectedCatId == RECENTLY_ADDED_ID,
+                          onTap: () {
+                            if (widget.contentType == 'movie') {
+                              controller.selectMovieCategory(RECENTLY_ADDED_ID);
+                            } else {
+                              controller.selectSeriesCategory(RECENTLY_ADDED_ID);
+                            }
+                            Navigator.of(context).pop();
+                          },
+                          trailing: GestureDetector(
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  backgroundColor: AppColors.background,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  title: Row(
+                                    children: [
+                                      const Icon(Icons.info_outline_rounded, color: AppColors.primary),
+                                      const SizedBox(width: 8),
+                                      const Text('Bilgi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  content: Text(
+                                    'Son eklenen $recentCount içerik gösterilmektedir. Sayıyı değiştirmek için ayarlar sayfasına gidebilirsiniz.',
+                                    style: const TextStyle(color: AppColors.textSecondary),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(ctx).pop(),
+                                      child: const Text('Tamam'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.only(left: 8.0),
+                              child: Icon(Icons.info_outline_rounded, color: AppColors.textMuted, size: 18),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+
                         // Yeni Categories (Flat Links)
                         ...yeniCategories.map((cat) {
                           final isSelected = cat.id == selectedCatId;
@@ -748,6 +877,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
     required bool isSelected,
     required VoidCallback onTap,
     bool indent = false,
+    Widget? trailing,
   }) {
     return Container(
       margin: EdgeInsets.only(left: indent ? 28 : 12, right: 12, top: 1, bottom: 1),
@@ -782,6 +912,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                   ),
                 ),
               ),
+              if (trailing != null) trailing,
             ],
           ),
         ),
@@ -803,6 +934,13 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(iptvControllerProvider);
     final controller = ref.read(iptvControllerProvider.notifier);
+    final int recentCount = ref.watch(recentCountProvider);
+
+    // Get daily series category IDs from state.movieCategories
+    final dailySeriesCategoryIds = state.movieCategories
+        .where((cat) => _isDailySeriesCategory(cat.name))
+        .map((cat) => cat.id)
+        .toSet();
 
     // Get current lists and categories
     final List<dynamic> categories;
@@ -817,20 +955,106 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
         filteredItems = filteredItems.where((item) => favorites.any((f) => f.streamId == item.streamId)).toList();
       }
     } else if (widget.contentType == 'movie') {
-      categories = state.movieCategories;
+      // Movies: exclude daily series categories
+      categories = state.movieCategories.where((cat) => !dailySeriesCategoryIds.contains(cat.id)).toList();
 
-      filteredItems = controller.getFilteredMovies();
+      final selectedMovieCatId = state.selectedMovieCategoryId;
+      
+      if (selectedMovieCatId == RECENTLY_ADDED_ID) {
+        final allMovies = List<IptvMovie>.from(state.movies.where((m) => !dailySeriesCategoryIds.contains(m.categoryId)));
+        allMovies.sort((a, b) {
+          final d1 = a.addedDate;
+          final d2 = b.addedDate;
+          if (d1 == null && d2 == null) return 0;
+          if (d1 == null) return 1;
+          if (d2 == null) return -1;
+          return d2.compareTo(d1);
+        });
+        filteredItems = allMovies.take(recentCount).toList();
+      } else {
+        filteredItems = controller.getFilteredMovies()
+            .where((m) => !dailySeriesCategoryIds.contains(m.categoryId))
+            .toList();
+      }
+      
       if (_showOnlyFavorites) {
         final favorites = state.favoriteMovies;
         filteredItems = filteredItems.where((item) => favorites.any((f) => f.streamId == item.streamId)).toList();
       }
     } else {
-      categories = state.seriesCategories;
+      // Series: include series categories PLUS daily series categories from movies
+      final dailySeriesCats = state.movieCategories.where((cat) => _isDailySeriesCategory(cat.name)).toList();
+      categories = [...state.seriesCategories, ...dailySeriesCats];
 
-      filteredItems = controller.getFilteredSeries();
+      final selectedSeriesCatId = state.selectedSeriesCategoryId;
+      final query = state.searchQuery.toLowerCase();
+
+      // Grouping helper
+      List<dynamic> groupDailySeries(List<IptvMovie> movies) {
+        final Map<String, List<IptvMovie>> grouped = {};
+        for (final m in movies) {
+          final baseName = _getDailySeriesBaseName(m.name);
+          grouped.putIfAbsent(baseName, () => []).add(m);
+        }
+        
+        return grouped.entries.map((e) {
+          final baseName = e.key;
+          final episodes = e.value;
+          episodes.sort((a, b) => _extractEpisodeNumber(a.name).compareTo(_extractEpisodeNumber(b.name)));
+          return VirtualDailySeries(
+            baseName: baseName,
+            representative: episodes.first,
+            episodes: episodes,
+          );
+        }).toList();
+      }
+
+      if (selectedSeriesCatId == RECENTLY_ADDED_ID) {
+        final allSeries = List<IptvSeries>.from(state.series);
+        allSeries.sort((a, b) {
+          final d1 = a.addedDate;
+          final d2 = b.addedDate;
+          if (d1 == null && d2 == null) return 0;
+          if (d1 == null) return 1;
+          if (d2 == null) return -1;
+          return d2.compareTo(d1);
+        });
+        filteredItems = allSeries.take(recentCount).toList();
+      } else if (selectedSeriesCatId.isEmpty) {
+        // "Tümü" - show normal series AND grouped daily series movies
+        final regularSeries = controller.getFilteredSeries();
+        final dailySeriesMovies = state.movies.where((m) {
+          final matchesCategory = dailySeriesCategoryIds.contains(m.categoryId);
+          final matchesSearch = query.isEmpty || m.name.toLowerCase().contains(query);
+          return matchesCategory && matchesSearch;
+        }).toList();
+        
+        final groupedDailySeries = groupDailySeries(dailySeriesMovies);
+        filteredItems = [...regularSeries, ...groupedDailySeries];
+      } else if (dailySeriesCategoryIds.contains(selectedSeriesCatId)) {
+        // Daily series category selected - show grouped daily series movies in that category
+        final dailySeriesMovies = state.movies.where((m) {
+          final matchesCategory = m.categoryId == selectedSeriesCatId;
+          final matchesSearch = query.isEmpty || m.name.toLowerCase().contains(query);
+          return matchesCategory && matchesSearch;
+        }).toList();
+        
+        filteredItems = groupDailySeries(dailySeriesMovies);
+      } else {
+        // Normal series category selected
+        filteredItems = controller.getFilteredSeries();
+      }
+
       if (_showOnlyFavorites) {
-        final favorites = state.favoriteSeries;
-        filteredItems = filteredItems.where((item) => favorites.any((f) => f.seriesId == item.seriesId)).toList();
+        filteredItems = filteredItems.where((item) {
+          if (item is IptvMovie) {
+            return state.favoriteMovies.any((f) => f.streamId == item.streamId);
+          } else if (item is VirtualDailySeries) {
+            return item.episodes.any((ep) => state.favoriteMovies.any((f) => f.streamId == ep.streamId));
+          } else {
+            return state.favoriteSeries.any((f) => f.seriesId == item.seriesId);
+          }
+        }).toList();
       }
     }
 
@@ -839,7 +1063,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      drawer: categories.isNotEmpty ? _buildCategoryDrawer(categories, controller) : null,
+      drawer: categories.isNotEmpty ? _buildCategoryDrawer(categories, controller, recentCount) : null,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -884,7 +1108,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                         ),
                       ),
                     const Spacer(),
-                    // Favorites Toggle button
+                    // Favorites Toggle button (Compact Glass Icon)
                     InkWell(
                       onTap: () {
                         setState(() {
@@ -893,7 +1117,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                       },
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: _showOnlyFavorites ? AppColors.warning.withOpacity(0.15) : AppColors.surface,
                           borderRadius: BorderRadius.circular(12),
@@ -901,36 +1125,106 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                             color: _showOnlyFavorites ? AppColors.warning.withOpacity(0.5) : AppColors.borderDark,
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _showOnlyFavorites ? Icons.star_rounded : Icons.star_border_rounded,
-                              color: _showOnlyFavorites ? AppColors.warning : AppColors.textSecondary,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              ref.tr('tab_favorites').toUpperCase(),
-                              style: TextStyle(
-                                color: _showOnlyFavorites ? AppColors.warning : Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                        child: Icon(
+                          _showOnlyFavorites ? Icons.star_rounded : Icons.star_border_rounded,
+                          color: _showOnlyFavorites ? AppColors.warning : AppColors.textSecondary,
+                          size: 20,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    // Search icon button
-                    IconButton(
-                      icon: const Icon(Icons.search_rounded, color: Colors.white, size: 24),
-                      onPressed: () {
+                    const SizedBox(width: 10),
+                    // Grid Columns Toggler (Compact Glass Icon)
+                    Theme(
+                      data: Theme.of(context).copyWith(
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
+                      ),
+                      child: PopupMenuButton<int>(
+                        color: AppColors.background.withOpacity(0.9),
+                        elevation: 10,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(color: AppColors.primary.withOpacity(0.3), width: 1),
+                        ),
+                        tooltip: 'Görünümü Değiştir',
+                        offset: const Offset(0, 50),
+                        onSelected: (int val) {
+                          setState(() {
+                            if (widget.contentType == 'movie') {
+                              _movieGridColumns = val;
+                            } else if (widget.contentType == 'series') {
+                              _seriesGridColumns = val;
+                            } else if (widget.contentType == 'live') {
+                              _liveGridColumns = val;
+                            }
+                          });
+                        },
+                          itemBuilder: (BuildContext context) {
+                            if (widget.contentType == 'live') {
+                              return [
+                                PopupMenuItem(value: 0, child: Row(children: [Icon(Icons.view_headline_rounded, color: AppColors.textSecondary, size: 20), const SizedBox(width: 12), const Text('Küçük Liste', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))])),
+                                PopupMenuItem(value: 1, child: Row(children: [Icon(Icons.view_list_rounded, color: AppColors.textSecondary, size: 20), const SizedBox(width: 12), const Text('Detaylı Liste', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))])),
+                                const PopupMenuDivider(height: 1),
+                                PopupMenuItem(value: 3, child: Row(children: [Icon(Icons.grid_on_rounded, color: AppColors.textSecondary, size: 20), const SizedBox(width: 12), const Text('3\'lü Izgara', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))])),
+                                PopupMenuItem(value: 4, child: Row(children: [Icon(Icons.view_comfy_rounded, color: AppColors.textSecondary, size: 20), const SizedBox(width: 12), const Text('4\'lü Izgara', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))])),
+                                PopupMenuItem(value: 5, child: Row(children: [Icon(Icons.apps_rounded, color: AppColors.textSecondary, size: 20), const SizedBox(width: 12), const Text('5\'li Izgara', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))])),
+                              ];
+                            }
+                            return [
+                              PopupMenuItem(value: 0, child: Row(children: [Icon(Icons.view_headline_rounded, color: AppColors.textSecondary, size: 20), const SizedBox(width: 12), const Text('Küçük Liste', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))])),
+                              PopupMenuItem(value: 1, child: Row(children: [Icon(Icons.view_list_rounded, color: AppColors.textSecondary, size: 20), const SizedBox(width: 12), const Text('Detaylı Liste', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))])),
+                              const PopupMenuDivider(height: 1),
+                              PopupMenuItem(value: 2, child: Row(children: [Icon(Icons.grid_view_rounded, color: AppColors.textSecondary, size: 20), const SizedBox(width: 12), const Text('2\'li Izgara', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))])),
+                              PopupMenuItem(value: 3, child: Row(children: [Icon(Icons.view_module_rounded, color: AppColors.textSecondary, size: 20), const SizedBox(width: 12), const Text('3\'lü Izgara', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))])),
+                              PopupMenuItem(value: 4, child: Row(children: [Icon(Icons.view_comfy_rounded, color: AppColors.textSecondary, size: 20), const SizedBox(width: 12), const Text('4\'lü Izgara', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))])),
+                            ];
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.borderDark),
+                            ),
+                            child: Icon(
+                              () {
+                                final col = widget.contentType == 'movie' ? _movieGridColumns : (widget.contentType == 'series' ? _seriesGridColumns : _liveGridColumns);
+                                if (col == 0) return Icons.view_headline_rounded;
+                                if (col == 1) return Icons.view_list_rounded;
+                                if (col == 2) return Icons.grid_view_rounded;
+                                if (col == 3) return widget.contentType == 'live' ? Icons.grid_on_rounded : Icons.view_module_rounded;
+                                if (col == 4) return Icons.view_comfy_rounded;
+                                if (col == 5) return Icons.apps_rounded;
+                                return Icons.view_comfy_rounded;
+                              }(),
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(width: 10),
+                    // Search icon button (Compact Glass Icon)
+                    InkWell(
+                      onTap: () {
                         setState(() {
                           _isSearchActive = true;
                         });
                       },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.borderDark),
+                        ),
+                        child: const Icon(
+                          Icons.search_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -1041,12 +1335,30 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
   // --- Live TV List View ---
   Widget _buildLiveList(List<dynamic> items) {
     final groupedList = _groupChannels(items);
-    return ListView.builder(
+    
+    if (_liveGridColumns <= 1) {
+      return ListView.builder(
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 90),
+        itemCount: groupedList.length,
+        itemBuilder: (context, index) {
+          final group = groupedList[index];
+          return GroupedChannelTile(group: group);
+        },
+      );
+    }
+    
+    return GridView.builder(
       padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 90),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: _liveGridColumns,
+        childAspectRatio: 1.0,
+        crossAxisSpacing: _liveGridColumns >= 4 ? 8.0 : 12.0,
+        mainAxisSpacing: _liveGridColumns >= 4 ? 8.0 : 12.0,
+      ),
       itemCount: groupedList.length,
       itemBuilder: (context, index) {
         final group = groupedList[index];
-        return GroupedChannelTile(group: group);
+        return GroupedChannelGridTile(group: group, columns: _liveGridColumns);
       },
     );
   }
@@ -1085,23 +1397,54 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
 
   // --- Movie/Series Grid View ---
   Widget _buildMediaGrid(List<dynamic> items) {
+    final columns = widget.contentType == 'movie'
+        ? _movieGridColumns
+        : (widget.contentType == 'series' ? _seriesGridColumns : 2);
+        
+    if (columns <= 1) {
+      return ListView.builder(
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 90),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          if (columns == 0) {
+            return _buildCompactMediaListItem(items[index], context);
+          } else {
+            return _buildMediaListItem(items[index], context);
+          }
+        },
+      );
+    }
+    
+    // Dynamic design scaling variables
+    final favRadius = columns >= 4 ? 11.0 : 14.0;
+    final favIconSize = columns >= 4 ? 12.0 : 16.0;
+    final titleFontSize = columns == 4 ? 10.5 : (columns == 3 ? 12.0 : 13.0);
+    final topOffset = columns >= 4 ? 6.0 : 8.0;
+    final sideOffset = columns >= 4 ? 6.0 : 8.0;
+
     return GridView.builder(
       padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 90),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
         childAspectRatio: 0.72,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
+        crossAxisSpacing: columns >= 4 ? 8.0 : 12.0,
+        mainAxisSpacing: columns >= 4 ? 8.0 : 12.0,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        final isMovie = widget.contentType == 'movie';
+        final isMovie = item is IptvMovie;
+        final isVirtual = item is VirtualDailySeries;
+
         final isFav = isMovie
             ? ref.read(iptvControllerProvider).favoriteMovies.any((m) => m.streamId == item.streamId)
-            : ref.read(iptvControllerProvider).favoriteSeries.any((s) => s.seriesId == item.seriesId);
+            : (isVirtual
+                ? item.episodes.any((ep) => ref.read(iptvControllerProvider).favoriteMovies.any((f) => f.streamId == ep.streamId))
+                : ref.read(iptvControllerProvider).favoriteSeries.any((s) => s.seriesId == item.seriesId));
 
-        final String? imagePath = isMovie ? item.icon : item.cover;
+        final String? imagePath = isMovie ? item.icon : (isVirtual ? item.representative.icon : item.cover);
+        final String name = isMovie ? item.name : (isVirtual ? item.baseName : item.name);
+        final String? rating = isMovie ? item.rating : (isVirtual ? item.representative.rating : item.rating);
 
         return GestureDetector(
           onTap: () {
@@ -1115,6 +1458,8 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                   ),
                 ),
               );
+            } else if (isVirtual) {
+              _showDailySeriesEpisodesSheet(context, item);
             } else {
               _showSeriesDetails(context, item);
             }
@@ -1136,21 +1481,21 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                             imageUrl: imagePath,
                             fit: BoxFit.cover,
                             placeholder: (_, __) => Container(color: AppColors.surfaceLight),
-                            errorWidget: (_, __, ___) => _buildFallbackPoster(item.name),
+                            errorWidget: (_, __, ___) => _buildFallbackPoster(name),
                           )
-                        : _buildFallbackPoster(item.name),
+                        : _buildFallbackPoster(name),
                   ),
 
                   // Rating/Favorite Badges
                   Positioned(
-                    top: 8,
-                    left: 8,
-                    right: 8,
+                    top: topOffset,
+                    left: sideOffset,
+                    right: sideOffset,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Rating Tag
-                        if (isMovie && item.rating != null && item.rating!.isNotEmpty) ...[
+                        // Rating Tag (Only display in 2-column mode to keep 3x/4x dense grids clean)
+                        if (columns == 2 && rating != null && rating.isNotEmpty) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                             decoration: BoxDecoration(
@@ -1161,7 +1506,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                               children: [
                                 const Icon(Icons.star_rounded, color: AppColors.warning, size: 12),
                                 const SizedBox(width: 4),
-                                Text(item.rating!, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                Text(rating, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),
@@ -1173,17 +1518,31 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                           onTap: () {
                             if (isMovie) {
                               ref.read(iptvControllerProvider.notifier).toggleFavoriteMovie(item);
+                            } else if (isVirtual) {
+                              final isAnyFav = item.episodes.any((ep) => ref.read(iptvControllerProvider).favoriteMovies.any((f) => f.streamId == ep.streamId));
+                              if (isAnyFav) {
+                                // Unfavorite all episodes
+                                for (final ep in item.episodes) {
+                                  final isEpFav = ref.read(iptvControllerProvider).favoriteMovies.any((f) => f.streamId == ep.streamId);
+                                  if (isEpFav) {
+                                    ref.read(iptvControllerProvider.notifier).toggleFavoriteMovie(ep);
+                                  }
+                                }
+                              } else {
+                                // Favorite the representative episode
+                                ref.read(iptvControllerProvider.notifier).toggleFavoriteMovie(item.representative);
+                              }
                             } else {
                               ref.read(iptvControllerProvider.notifier).toggleFavoriteSeries(item);
                             }
                           },
                           child: CircleAvatar(
-                            radius: 14,
+                            radius: favRadius,
                             backgroundColor: Colors.black.withOpacity(0.7),
                             child: Icon(
                               isFav ? Icons.star_rounded : Icons.star_border_rounded,
                               color: isFav ? AppColors.warning : Colors.white,
-                              size: 16,
+                              size: favIconSize,
                             ),
                           ),
                         ),
@@ -1209,15 +1568,10 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item.name,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                            name,
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: titleFontSize),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            isMovie ? ref.tr('media_movie_label') : ref.tr('media_series_label'),
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
                           ),
                         ],
                       ),
@@ -1229,6 +1583,243 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMediaListItem(dynamic item, BuildContext context) {
+    final isMovie = item is IptvMovie;
+    final isVirtual = item is VirtualDailySeries;
+
+    final isFav = isMovie
+        ? ref.read(iptvControllerProvider).favoriteMovies.any((m) => m.streamId == item.streamId)
+        : (isVirtual
+            ? item.episodes.any((ep) => ref.read(iptvControllerProvider).favoriteMovies.any((f) => f.streamId == ep.streamId))
+            : ref.read(iptvControllerProvider).favoriteSeries.any((s) => s.seriesId == item.seriesId));
+
+    final String? imagePath = isMovie ? item.icon : (isVirtual ? item.representative.icon : item.cover);
+    final String name = isMovie ? item.name : (isVirtual ? item.baseName : item.name);
+    final String? rating = isMovie ? item.rating : (isVirtual ? item.representative.rating : item.rating);
+    final DateTime? addedDate = isMovie ? item.addedDate : (isVirtual ? item.representative.addedDate : item.addedDate);
+
+    return GestureDetector(
+      onTap: () {
+        if (isMovie) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PlayerScreen(
+                mediaId: item.streamId,
+                mediaName: item.name,
+                mediaType: 'movie',
+              ),
+            ),
+          );
+        } else if (isVirtual) {
+          _showDailySeriesEpisodesSheet(context, item);
+        } else {
+          _showSeriesDetails(context, item);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderDark, width: 1),
+        ),
+        child: Row(
+          children: [
+            // Thumbnail
+            ClipRRect(
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), bottomLeft: Radius.circular(16)),
+              child: SizedBox(
+                width: 90,
+                height: 135,
+                child: imagePath != null
+                    ? CachedNetworkImage(
+                        imageUrl: imagePath,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(color: AppColors.surfaceLight),
+                        errorWidget: (_, __, ___) => _buildFallbackPoster(name),
+                      )
+                    : _buildFallbackPoster(name),
+              ),
+            ),
+            const SizedBox(width: 14),
+            // Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  if (rating != null && rating.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded, color: AppColors.warning, size: 14),
+                        const SizedBox(width: 4),
+                        Text(rating, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  if (addedDate != null)
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 12),
+                        const SizedBox(width: 6),
+                        Text(
+                          "Eklendi: ${addedDate.day.toString().padLeft(2, '0')}.${addedDate.month.toString().padLeft(2, '0')}.${addedDate.year}",
+                          style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            // Favorite Button
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: GestureDetector(
+                onTap: () {
+                  if (isMovie) {
+                    ref.read(iptvControllerProvider.notifier).toggleFavoriteMovie(item);
+                  } else if (isVirtual) {
+                    final isAnyFav = item.episodes.any((ep) => ref.read(iptvControllerProvider).favoriteMovies.any((f) => f.streamId == ep.streamId));
+                    if (isAnyFav) {
+                      for (final ep in item.episodes) {
+                        final isEpFav = ref.read(iptvControllerProvider).favoriteMovies.any((f) => f.streamId == ep.streamId);
+                        if (isEpFav) {
+                          ref.read(iptvControllerProvider.notifier).toggleFavoriteMovie(ep);
+                        }
+                      }
+                    } else {
+                      ref.read(iptvControllerProvider.notifier).toggleFavoriteMovie(item.representative);
+                    }
+                  } else {
+                    ref.read(iptvControllerProvider.notifier).toggleFavoriteSeries(item);
+                  }
+                },
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: isFav ? AppColors.warning.withOpacity(0.15) : AppColors.surfaceLight,
+                  child: Icon(
+                    isFav ? Icons.star_rounded : Icons.star_border_rounded,
+                    color: isFav ? AppColors.warning : AppColors.textMuted,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactMediaListItem(dynamic item, BuildContext context) {
+    final isMovie = item is IptvMovie;
+    final isVirtual = item is VirtualDailySeries;
+
+    final isFav = isMovie
+        ? ref.read(iptvControllerProvider).favoriteMovies.any((m) => m.streamId == item.streamId)
+        : (isVirtual
+            ? item.episodes.any((ep) => ref.read(iptvControllerProvider).favoriteMovies.any((f) => f.streamId == ep.streamId))
+            : ref.read(iptvControllerProvider).favoriteSeries.any((s) => s.seriesId == item.seriesId));
+
+    final String? imagePath = isMovie ? item.icon : (isVirtual ? item.representative.icon : item.cover);
+    final String name = isMovie ? item.name : (isVirtual ? item.baseName : item.name);
+
+    return GestureDetector(
+      onTap: () {
+        if (isMovie) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PlayerScreen(
+                mediaId: item.streamId,
+                mediaName: item.name,
+                mediaType: 'movie',
+              ),
+            ),
+          );
+        } else if (isVirtual) {
+          _showDailySeriesEpisodesSheet(context, item);
+        } else {
+          _showSeriesDetails(context, item);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surface.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.borderDark, width: 1),
+        ),
+        child: Row(
+          children: [
+            // Thumbnail
+            ClipRRect(
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
+              child: SizedBox(
+                width: 50,
+                height: 75,
+                child: imagePath != null
+                    ? CachedNetworkImage(
+                        imageUrl: imagePath,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(color: AppColors.surfaceLight),
+                        errorWidget: (_, __, ___) => _buildFallbackPoster(name),
+                      )
+                    : _buildFallbackPoster(name),
+              ),
+            ),
+            const SizedBox(width: 14),
+            // Details
+            Expanded(
+              child: Text(
+                name,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            // Favorite Button
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: GestureDetector(
+                onTap: () {
+                  if (isMovie) {
+                    ref.read(iptvControllerProvider.notifier).toggleFavoriteMovie(item);
+                  } else if (isVirtual) {
+                    final isAnyFav = item.episodes.any((ep) => ref.read(iptvControllerProvider).favoriteMovies.any((f) => f.streamId == ep.streamId));
+                    if (isAnyFav) {
+                      for (final ep in item.episodes) {
+                        final isEpFav = ref.read(iptvControllerProvider).favoriteMovies.any((f) => f.streamId == ep.streamId);
+                        if (isEpFav) {
+                          ref.read(iptvControllerProvider.notifier).toggleFavoriteMovie(ep);
+                        }
+                      }
+                    } else {
+                      ref.read(iptvControllerProvider.notifier).toggleFavoriteMovie(item.representative);
+                    }
+                  } else {
+                    ref.read(iptvControllerProvider.notifier).toggleFavoriteSeries(item);
+                  }
+                },
+                child: Icon(
+                  isFav ? Icons.star_rounded : Icons.star_border_rounded,
+                  color: isFav ? AppColors.warning : AppColors.textMuted,
+                  size: 22,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1482,6 +2073,140 @@ class SeriesDetailSheetState extends ConsumerState<SeriesDetailSheet> {
                           );
                         },
                       ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Custom Bottom Sheet for Grouped Daily Series Detail View
+class DailySeriesDetailSheet extends ConsumerWidget {
+  final VirtualDailySeries series;
+
+  const DailySeriesDetailSheet({required this.series});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.85,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Banner Cover image
+          SizedBox(
+            height: 220,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: series.representative.icon != null
+                      ? CachedNetworkImage(imageUrl: series.representative.icon!, fit: BoxFit.cover)
+                      : Container(color: AppColors.surface),
+                ),
+                Positioned.fill(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.background, Colors.transparent],
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: CircleAvatar(
+                    backgroundColor: Colors.black.withOpacity(0.6),
+                    child: IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 20,
+                  bottom: 16,
+                  right: 20,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        series.baseName,
+                        style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${ref.tr('media_series_label')} • ${series.episodes.length} ${ref.tr('series_episode_label')}',
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Series Plot and Detail
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+            child: Text(
+              '${series.baseName} ${ref.tr('media_series_label').toLowerCase()} - ${series.episodes.length} ${ref.tr('series_episode_label').toLowerCase()}',
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+            ),
+          ),
+
+          const Divider(color: AppColors.borderDark, height: 24, thickness: 1),
+
+          // Episode List
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+              itemCount: series.episodes.length,
+              itemBuilder: (ctx, idx) {
+                final ep = series.episodes[idx];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.borderDark),
+                  ),
+                  child: ListTile(
+                    onTap: () {
+                      Navigator.of(context).pop(); // Close details sheet
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PlayerScreen(
+                            mediaId: ep.streamId,
+                            mediaName: ep.name,
+                            mediaType: 'movie',
+                          ),
+                        ),
+                      );
+                    },
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: AppColors.surfaceLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.play_arrow_rounded, color: AppColors.primary),
+                    ),
+                    title: Text(
+                      ep.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    subtitle: Text(ref.tr('series_file') + ': VOD', style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textSecondary, size: 14),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -1798,6 +2523,170 @@ class _GroupedChannelTileState extends ConsumerState<GroupedChannelTile> {
               duration: const Duration(milliseconds: 250),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class GroupedChannelGridTile extends ConsumerWidget {
+  final GroupedLiveChannel group;
+  final int columns;
+
+  const GroupedChannelGridTile({super.key, required this.group, required this.columns});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mainChannel = group.mainChannel;
+    final variations = group.variations;
+    final hasMultiple = variations.length > 1;
+
+    final favList = ref.watch(iptvControllerProvider.select((s) => s.favoriteLive));
+    final isAnyFav = variations.any((v) => favList.any((c) => c.streamId == v.streamId));
+
+    final favRadius = columns >= 4 ? 11.0 : 14.0;
+    final favIconSize = columns >= 4 ? 12.0 : 16.0;
+    final titleFontSize = columns == 4 ? 10.5 : (columns == 3 ? 12.0 : 13.0);
+    final topOffset = columns >= 4 ? 6.0 : 8.0;
+    final sideOffset = columns >= 4 ? 6.0 : 8.0;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PlayerScreen(
+              mediaId: mainChannel.streamId,
+              mediaName: mainChannel.displayName,
+              mediaType: 'live',
+            ),
+          ),
+        );
+      },
+      onLongPress: () {
+        if (!hasMultiple) return;
+        // Show variations sheet
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (ctx) => Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(group.baseName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                ...variations.map((v) {
+                  return ListTile(
+                    title: Text(v.displayName, style: const TextStyle(color: Colors.white)),
+                    trailing: const Icon(Icons.play_circle_fill_rounded, color: AppColors.primary),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PlayerScreen(
+                            mediaId: v.streamId,
+                            mediaName: v.displayName,
+                            mediaType: 'live',
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }).toList(),
+              ],
+            ),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderDark, width: 1),
+        ),
+        child: Stack(
+          children: [
+            // Center Logo
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15), // Slightly less than 16 to fit inside border
+                child: mainChannel.icon != null && mainChannel.icon!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: mainChannel.icon!,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(color: AppColors.surfaceLight),
+                        errorWidget: (_, __, ___) => _buildFallbackLogo(mainChannel.displayName),
+                      )
+                    : _buildFallbackLogo(mainChannel.displayName),
+              ),
+            ),
+            // Multi Badge (Bottom Full Width)
+            if (hasMultiple)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.9),
+                    borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(15), bottomRight: Radius.circular(15)),
+                  ),
+                  child: Text(
+                    'MULTI', 
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white, 
+                      fontSize: columns >= 4 ? 8 : 10, 
+                      fontWeight: FontWeight.bold, 
+                      letterSpacing: 1.5
+                    ),
+                  ),
+                ),
+              ),
+            // Favorite Button
+            Positioned(
+              top: topOffset,
+              right: sideOffset,
+              child: GestureDetector(
+                onTap: () {
+                  if (hasMultiple) {
+                    // Toggle favorite for all variations? Or just main? 
+                    // Let's do main channel for simplicity if it's a grid click
+                    ref.read(iptvControllerProvider.notifier).toggleFavoriteLive(mainChannel);
+                  } else {
+                    ref.read(iptvControllerProvider.notifier).toggleFavoriteLive(mainChannel);
+                  }
+                },
+                child: CircleAvatar(
+                  radius: favRadius,
+                  backgroundColor: Colors.black.withOpacity(0.7),
+                  child: Icon(
+                    isAnyFav ? Icons.star_rounded : Icons.star_border_rounded,
+                    color: isAnyFav ? AppColors.warning : Colors.white,
+                    size: favIconSize,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFallbackLogo(String name) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(8)),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
+        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
       ),
     );
   }

@@ -20,6 +20,31 @@ class FavoritesScreen extends ConsumerStatefulWidget {
 class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   int _selectedFavoritesTab = 0;
 
+  String _normalizeCategoryName(String text) {
+    return text
+        .toLowerCase()
+        .replaceAll('ı', 'i')
+        .replaceAll('i̇', 'i')
+        .replaceAll('ğ', 'g')
+        .replaceAll('ü', 'u')
+        .replaceAll('ş', 's')
+        .replaceAll('ö', 'o')
+        .replaceAll('ç', 'c');
+  }
+
+  bool _isDailySeriesCategory(String name) {
+    final norm = _normalizeCategoryName(name);
+    return norm.contains('pazartesi') || 
+           norm.contains('sali') || 
+           norm.contains('carsamba') || 
+           norm.contains('persembe') || 
+           norm.contains('cuma') || 
+           norm.contains('cumartesi') || 
+           norm.contains('pazar') || 
+           norm.contains('gunluk') || 
+           norm.contains('daily');
+  }
+
   void _showSeriesDetails(BuildContext context, dynamic serie) {
     showModalBottomSheet(
       context: context,
@@ -151,6 +176,15 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(iptvControllerProvider);
 
+    final dailySeriesCategoryIds = state.movieCategories
+        .where((cat) => _isDailySeriesCategory(cat.name))
+        .map((cat) => cat.id)
+        .toSet();
+
+    final dailySeriesFavMovies = state.favoriteMovies.where((m) => dailySeriesCategoryIds.contains(m.categoryId)).toList();
+    final regularFavMovies = state.favoriteMovies.where((m) => !dailySeriesCategoryIds.contains(m.categoryId)).toList();
+    final allFavSeries = [...state.favoriteSeries, ...dailySeriesFavMovies];
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
@@ -174,9 +208,9 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                 children: [
                   _buildFavChip(0, ref.tr('dashboard_live'), Icons.tv_rounded, state.favoriteLive.length),
                   const SizedBox(width: 8),
-                  _buildFavChip(1, ref.tr('dashboard_movies'), Icons.movie_rounded, state.favoriteMovies.length),
+                  _buildFavChip(1, ref.tr('dashboard_movies'), Icons.movie_rounded, regularFavMovies.length),
                   const SizedBox(width: 8),
-                  _buildFavChip(2, ref.tr('dashboard_series'), Icons.video_library_rounded, state.favoriteSeries.length),
+                  _buildFavChip(2, ref.tr('dashboard_series'), Icons.video_library_rounded, allFavSeries.length),
                 ],
               ),
             ),
@@ -187,8 +221,8 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
               child: _selectedFavoritesTab == 0
                   ? _buildLiveFavorites(state.favoriteLive)
                   : (_selectedFavoritesTab == 1
-                      ? _buildMovieFavorites(state.favoriteMovies)
-                      : _buildSeriesFavorites(state.favoriteSeries)),
+                      ? _buildMovieFavorites(regularFavMovies)
+                      : _buildSeriesFavorites(allFavSeries)),
             ),
           ],
         ),
@@ -379,7 +413,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   }
 
   // --- TV Series Favorites View ---
-  Widget _buildSeriesFavorites(List<IptvSeries> list) {
+  Widget _buildSeriesFavorites(List<dynamic> list) {
     if (list.isEmpty) return _buildEmptyState('Series');
 
     return GridView.builder(
@@ -393,9 +427,26 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
       itemCount: list.length,
       itemBuilder: (context, index) {
         final series = list[index];
+        final isMovieItem = series is IptvMovie;
+        final String? imageUrl = isMovieItem ? series.icon : series.cover;
+        final IconData fallbackIcon = isMovieItem ? Icons.movie_rounded : Icons.video_library_rounded;
+        final Color fallbackColor = isMovieItem ? AppColors.secondary : AppColors.accent;
+
         return GestureDetector(
           onTap: () {
-            _showSeriesDetails(context, series);
+            if (isMovieItem) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => PlayerScreen(
+                    mediaId: series.streamId,
+                    mediaName: series.name,
+                    mediaType: 'movie',
+                  ),
+                ),
+              );
+            } else {
+              _showSeriesDetails(context, series);
+            }
           },
           child: Container(
             decoration: BoxDecoration(
@@ -409,23 +460,23 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                 children: [
                   // Cover Image
                   Positioned.fill(
-                    child: series.cover != null && series.cover!.isNotEmpty
+                    child: imageUrl != null && imageUrl.isNotEmpty
                         ? CachedNetworkImage(
-                            imageUrl: series.cover!,
+                            imageUrl: imageUrl,
                             fit: BoxFit.cover,
                             placeholder: (_, __) => Container(color: AppColors.surface),
                             errorWidget: (_, __, ___) => Container(
                               decoration: const BoxDecoration(
                                 gradient: AppColors.cardGradient,
                               ),
-                              child: const Icon(Icons.video_library_rounded, color: AppColors.accent, size: 36),
+                              child: Icon(fallbackIcon, color: fallbackColor, size: 36),
                             ),
                           )
                         : Container(
                             decoration: const BoxDecoration(
                               gradient: AppColors.cardGradient,
                             ),
-                            child: const Icon(Icons.video_library_rounded, color: AppColors.accent, size: 36),
+                            child: Icon(fallbackIcon, color: fallbackColor, size: 36),
                           ),
                   ),
 
@@ -462,9 +513,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          series.releaseDate != null && series.releaseDate!.length >= 4
-                              ? series.releaseDate!.substring(0, 4)
-                              : 'Series',
+                          isMovieItem
+                              ? (series.year ?? 'VOD')
+                              : (series.releaseDate != null && series.releaseDate!.length >= 4
+                                  ? series.releaseDate!.substring(0, 4)
+                                  : 'Series'),
                           style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 10,
@@ -480,7 +533,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                     right: 6,
                     child: GestureDetector(
                       onTap: () {
-                        ref.read(iptvControllerProvider.notifier).toggleFavoriteSeries(series);
+                        if (isMovieItem) {
+                          ref.read(iptvControllerProvider.notifier).toggleFavoriteMovie(series);
+                        } else {
+                          ref.read(iptvControllerProvider.notifier).toggleFavoriteSeries(series);
+                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.all(6),

@@ -29,3 +29,21 @@ class EpgEnabledNotifier extends Notifier<bool> {
 final epgEnabledProvider = NotifierProvider<EpgEnabledNotifier, bool>(() {
   return EpgEnabledNotifier();
 });
+
+class RecentCountNotifier extends Notifier<int> {
+  @override
+  int build() {
+    final storage = ref.watch(localStorageProvider);
+    return storage.getRecentItemsCount();
+  }
+
+  void setCount(int val) {
+    ref.read(localStorageProvider).setRecentItemsCount(val);
+    state = val;
+  }
+}
+
+// Settings: Recent Count Provider
+final recentCountProvider = NotifierProvider<RecentCountNotifier, int>(() {
+  return RecentCountNotifier();
+});

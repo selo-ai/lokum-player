@@ -105,7 +105,7 @@ class IptvLiveChannel {
     var cleaned = displayName;
     // Match common quality and backup suffixes at the end of the channel name, supporting bracketed/parenthesized tags
     final suffixRegex = RegExp(
-      r'(?:\s*[\[\(]\s*(?:HD|FHD|4K|8K|SD|HQ|HEVC|H265|1080P|720P|YEDEK|BACKUP|ALT)\s*[\]\)]|\s*(?:[:\||\-–\s]\s*)*(?:HD|FHD|4K|8K|SD|HQ|HEVC|H265|1080P|720P|YEDEK|BACKUP|ALT)\b)',
+      r'(?:\s*[\[\(][^\]\)]*[\]\)]$|\s*(?:[:\||\-–\s]\s*)*(?:HD|FHD|4K|8K|SD|HQ|HEVC|H265|1080P|720P|YEDEK|BACKUP|ALT|VIP|RAW|PREMIUM|UHD)\b)',
       caseSensitive: false,
     );
     
@@ -156,6 +156,7 @@ class IptvMovie {
   final String? rating;
   final String? year;
   final double? ratingValue;
+  final String? added;
 
   IptvMovie({
     required this.streamId,
@@ -165,7 +166,17 @@ class IptvMovie {
     this.rating,
     this.year,
     this.ratingValue,
+    this.added,
   });
+
+  DateTime? get addedDate {
+    if (added == null || added!.isEmpty) return null;
+    final seconds = int.tryParse(added!);
+    if (seconds != null) {
+      return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+    }
+    return null;
+  }
 
   factory IptvMovie.fromJson(Map<String, dynamic> json) {
     double? rValue;
@@ -180,6 +191,7 @@ class IptvMovie {
       rating: json['rating']?.toString(),
       year: json['year']?.toString(),
       ratingValue: rValue,
+      added: json['added']?.toString(),
     );
   }
 
@@ -203,6 +215,7 @@ class IptvSeries {
   final String? director;
   final String? releaseDate;
   final String? rating;
+  final String? added;
 
   IptvSeries({
     required this.seriesId,
@@ -214,7 +227,17 @@ class IptvSeries {
     this.director,
     this.releaseDate,
     this.rating,
+    this.added,
   });
+
+  DateTime? get addedDate {
+    if (added == null || added!.isEmpty) return null;
+    final seconds = int.tryParse(added!);
+    if (seconds != null) {
+      return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+    }
+    return null;
+  }
 
   factory IptvSeries.fromJson(Map<String, dynamic> json) => IptvSeries(
     seriesId: json['series_id'] is int ? json['series_id'] : int.tryParse(json['series_id']?.toString() ?? '0') ?? 0,
@@ -226,6 +249,7 @@ class IptvSeries {
     director: json['director'],
     releaseDate: json['releaseDate']?.toString() ?? json['release_date']?.toString(),
     rating: json['rating']?.toString(),
+    added: json['added']?.toString() ?? json['last_modified']?.toString(),
   );
 
   Map<String, dynamic> toJson() => {

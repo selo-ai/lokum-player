@@ -69,6 +69,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  void _showRecentCountSelectorDialog(BuildContext context) {
+    final counts = [10, 20, 30];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          ref.watch(languageProvider).name == 'tr' ? 'Son Eklenenler Limiti' : 'Recently Added Limit',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: counts.map((count) {
+            final isSelected = ref.read(recentCountProvider) == count;
+            return ListTile(
+              leading: Icon(
+                isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              ),
+              title: Text(
+                '$count',
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+              onTap: () {
+                ref.read(recentCountProvider.notifier).setCount(count);
+                Navigator.of(ctx).pop();
+              },
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
   Widget _buildInfoRow(String title, String val) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -192,6 +230,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onChanged: (val) {
                           ref.read(epgEnabledProvider.notifier).setEnabled(val);
                         },
+                      ),
+                      const Divider(color: AppColors.borderDark, height: 24),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          ref.watch(languageProvider).name == 'tr' ? 'Son Eklenenler Limiti' : 'Recently Added Limit',
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          '${ref.watch(recentCountProvider)}',
+                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                        trailing: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary, size: 28),
+                        onTap: () => _showRecentCountSelectorDialog(context),
                       ),
                     ],
                   ),

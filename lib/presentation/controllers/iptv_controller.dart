@@ -63,8 +63,8 @@ class IptvState {
     favoriteMovies: [],
     favoriteSeries: [],
     selectedLiveCategoryId: '',
-    selectedMovieCategoryId: '',
-    selectedSeriesCategoryId: '',
+    selectedMovieCategoryId: 'RECENTLY_ADDED_CUSTOM_ID',
+    selectedSeriesCategoryId: 'RECENTLY_ADDED_CUSTOM_ID',
     searchQuery: '',
     epgCache: const {},
   );
@@ -179,8 +179,8 @@ class IptvController extends Notifier<IptvState> {
         favoriteMovies: favMovies,
         favoriteSeries: favSeries,
         selectedLiveCategoryId: '',
-        selectedMovieCategoryId: '',
-        selectedSeriesCategoryId: '',
+        selectedMovieCategoryId: 'RECENTLY_ADDED_CUSTOM_ID',
+        selectedSeriesCategoryId: 'RECENTLY_ADDED_CUSTOM_ID',
       );
     } catch (e, stack) {
       print('IPTV Controller Error: loadAllContent exception: $e');

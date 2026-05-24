@@ -10,6 +10,7 @@ class LocalStorage {
   static const String _keyHistory = 'history';
   static const String _keyLanguage = 'app_language';
   static const String _keyEpgEnabled = 'epg_enabled';
+  static const String _keyRecentCount = 'recent_items_count';
 
   late Box _box;
 
@@ -154,5 +155,14 @@ class LocalStorage {
 
   Future<void> setEpgEnabled(bool enabled) async {
     await _box.put(_keyEpgEnabled, enabled);
+  }
+
+  // --- Settings: Recent Items Count ---
+  int getRecentItemsCount() {
+    return _box.get(_keyRecentCount, defaultValue: 30);
+  }
+
+  Future<void> setRecentItemsCount(int count) async {
+    await _box.put(_keyRecentCount, count);
   }
 }

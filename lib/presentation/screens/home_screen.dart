@@ -418,39 +418,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // --- Loader Widget (Premium Shimmer) ---
+  // --- Loader Widget (Premium Glassmorphic Loader) ---
   Widget _buildLoader() {
-    return Shimmer.fromColors(
-      baseColor: AppColors.surface,
-      highlightColor: AppColors.surfaceLight,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 50),
-            Container(width: 150, height: 28, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
-            const SizedBox(height: 24),
-            Container(width: double.infinity, height: 180, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20))),
-            const SizedBox(height: 32),
-            Container(width: 100, height: 20, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 120,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: 4,
-                itemBuilder: (_, __) => Container(
-                  width: 100,
-                  margin: const EdgeInsets.only(right: 16),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 26),
+        margin: const EdgeInsets.symmetric(horizontal: 32),
+        decoration: BoxDecoration(
+          color: AppColors.surface.withOpacity(0.35),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.1),
+              blurRadius: 30,
+              spreadRadius: 5,
             ),
-            const SizedBox(height: 32),
-            Container(width: 120, height: 20, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
-            const SizedBox(height: 16),
-            Container(width: double.infinity, height: 80, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16))),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              ref.tr('updating'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.1,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              ref.tr('splash_subtitle'),
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -493,61 +506,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   // Refresh All / Tümünü Güncelle Button
                   GestureDetector(
                     onTap: () async {
-                      // Show loading dialog
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (dialogCtx) => Center(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                                decoration: BoxDecoration(
-                                  color: AppColors.background.withOpacity(0.85),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1.5),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.primary.withOpacity(0.1),
-                                      blurRadius: 20,
-                                      spreadRadius: 5,
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                                    ),
-                                    const SizedBox(height: 20),
-                                    Text(
-                                      ref.tr('updating'),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        decoration: TextDecoration.none,
-                                        fontFamily: 'Inter',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-
                       try {
                         await ref.read(iptvControllerProvider.notifier).loadAllContent();
-                        
-                        // Close loading dialog safely
-                        if (context.mounted) {
-                          Navigator.of(context).pop();
-                        }
                         
                         // Show premium success snackbar
                         if (context.mounted) {
@@ -573,11 +533,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           );
                         }
                       } catch (e) {
-                        // Close loading dialog safely
-                        if (context.mounted) {
-                          Navigator.of(context).pop();
-                        }
-                        
                         // Show error snackbar
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
