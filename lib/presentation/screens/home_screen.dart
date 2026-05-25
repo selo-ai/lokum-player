@@ -809,15 +809,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 _isHighlightsExpanded = !_isHighlightsExpanded;
               });
             },
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
               width: double.infinity,
               constraints: const BoxConstraints(minHeight: 80),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 gradient: LinearGradient(
-                  colors: [Colors.black, AppColors.primary.withOpacity(0.8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                  colors: _isHighlightsExpanded 
+                      ? [AppColors.primary.withOpacity(0.5), Colors.black]
+                      : [Colors.black, AppColors.primary.withOpacity(0.8)],
+                  begin: _isHighlightsExpanded ? Alignment.topCenter : Alignment.topLeft,
+                  end: _isHighlightsExpanded ? Alignment.bottomCenter : Alignment.bottomRight,
                 ),
               ),
               child: Stack(

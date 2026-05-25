@@ -23,7 +23,7 @@ class LaughingGasScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment.topCenter,
-                radius: 1.5,
+                radius: 2.5,
                 colors: [
                   Colors.amber.withValues(alpha: 0.3),
                   Colors.black,
@@ -137,34 +137,37 @@ class LaughingGasScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.amberAccent.withValues(alpha: 0.3)),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    channel.icon != null && channel.icon!.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: channel.icon!,
-                            fit: BoxFit.contain,
-                            errorWidget: (_, __, ___) => const Center(child: Icon(Icons.tv, color: Colors.white54, size: 40)),
-                          )
-                        : const Center(child: Icon(Icons.tv, color: Colors.white54, size: 40)),
-                    Positioned(
-                      bottom: 0, left: 0, right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        color: Colors.black87,
-                        child: Text(
-                          channel.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: channel.icon != null && channel.icon!.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: channel.icon!,
+                              fit: BoxFit.contain,
+                              errorWidget: (_, __, ___) => const Center(child: Icon(Icons.tv, color: Colors.white54, size: 40)),
+                            )
+                          : const Center(child: Icon(Icons.tv, color: Colors.white54, size: 40)),
                     ),
-                  ],
-                ),
+                  ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    decoration: const BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.only(bottomLeft: Radius.circular(11), bottomRight: Radius.circular(11)),
+                    ),
+                    child: Text(
+                      channel.name,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
             ),
           );

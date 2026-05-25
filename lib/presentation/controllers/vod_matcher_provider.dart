@@ -613,11 +613,23 @@ List<IptvLiveChannel> _filterLiveChannels(Ref ref, List<String> keywords) {
     return keywords.any((kw) => name.contains(kw));
   }).map((c) => c.id).toSet();
 
-  return iptvState.liveChannels.where((channel) {
+  var filtered = iptvState.liveChannels.where((channel) {
     if (matchedCategories.contains(channel.categoryId)) return true;
     final chName = channel.name.toLowerCase();
     return keywords.any((kw) => chName.contains(kw));
-  }).take(20).toList();
+  }).toList();
+
+  final notifier = ref.read(iptvControllerProvider.notifier);
+  filtered.sort((a, b) {
+    int usageA = notifier.getLiveUsage(a.streamId);
+    int usageB = notifier.getLiveUsage(b.streamId);
+    if (usageA != usageB) {
+      return usageB.compareTo(usageA);
+    }
+    return a.name.compareTo(b.name);
+  });
+
+  return filtered.take(20).toList();
 }
 
 final sportsChannelsProvider = Provider<List<IptvLiveChannel>>((ref) {

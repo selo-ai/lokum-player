@@ -38,7 +38,7 @@ class _SportsDashboardScreenState extends ConsumerState<SportsDashboardScreen> {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment.topCenter,
-                radius: 1.5,
+                radius: 2.5,
                 colors: [
                   AppColors.success.withOpacity(0.3),
                   Colors.black,
