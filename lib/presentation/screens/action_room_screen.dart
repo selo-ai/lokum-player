@@ -8,8 +8,8 @@ import '../../data/models/iptv_models.dart';
 import '../controllers/vod_matcher_provider.dart';
 import 'player_screen.dart';
 
-class LaughingGasScreen extends ConsumerWidget {
-  const LaughingGasScreen({super.key});
+class ActionRoomScreen extends ConsumerWidget {
+  const ActionRoomScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,15 +17,15 @@ class LaughingGasScreen extends ConsumerWidget {
       backgroundColor: Colors.black, // Dark theme base
       body: Stack(
         children: [
-          // Background Gradient (Amber/Black for comedy)
+          // Background Gradient
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment.topCenter,
                 radius: 1.5,
                 colors: [
-                  Colors.amber.withValues(alpha: 0.3),
-                  Colors.black,
+                  Colors.red.withValues(alpha: 0.5),
+                  Colors.black87,
                   Colors.black,
                 ],
               ),
@@ -40,13 +40,13 @@ class LaughingGasScreen extends ConsumerWidget {
                 pinned: true,
                 centerTitle: true,
                 title: const Text(
-                  'GÜLME GAZI',
+                  'ADRENALİN BOOM',
                   style: TextStyle(
-                    color: Colors.amberAccent,
+                    color: Colors.redAccent,
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 2.0,
-                    shadows: [Shadow(color: Colors.amber, blurRadius: 10)],
+                    shadows: [Shadow(color: Colors.red, blurRadius: 10)],
                   ),
                 ),
                 leading: IconButton(
@@ -61,24 +61,24 @@ class LaughingGasScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionTitle('Komedi Kanalları', Icons.tv_rounded),
-                      _buildLiveChannelsRow(ref.watch(comedyChannelsProvider), context),
+                      _buildSectionTitle('Aksiyon Kanalları', Icons.local_fire_department_rounded, Colors.redAccent),
+                      _buildLiveChannelsRow(ref.watch(actionChannelsProvider), context),
 
                       const SizedBox(height: 40),
 
-                      _buildSectionTitle('Komedi Filmleri', Icons.theater_comedy_rounded),
-                      ref.watch(comedyMoviesProvider).when(
-                        data: (matchedMovies) => _buildMatchedMovieRow(matchedMovies, context, ref),
-                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.amberAccent))),
+                      _buildSectionTitle('Aksiyon Filmleri', Icons.movie_filter_rounded, Colors.white),
+                      ref.watch(actionMoviesProvider).when(
+                        data: (matchedMovies) => _buildMatchedMovieRow(matchedMovies, context, ref, Colors.redAccent),
+                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.redAccent))),
                         error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
                       ),
 
                       const SizedBox(height: 40),
                       
-                      _buildSectionTitle('Komedi Dizileri', Icons.live_tv_rounded),
-                      ref.watch(comedySeriesProvider).when(
-                        data: (matchedSeries) => _buildMatchedSeriesRow(matchedSeries, context, ref),
-                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.amberAccent))),
+                      _buildSectionTitle('Aksiyon Dizileri', Icons.flash_on_rounded, Colors.redAccent),
+                      ref.watch(actionSeriesProvider).when(
+                        data: (matchedSeries) => _buildMatchedSeriesRow(matchedSeries, context, ref, Colors.redAccent),
+                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.redAccent))),
                         error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
                       ),
                     ],
@@ -92,12 +92,12 @@ class LaughingGasScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionTitle(String title, IconData icon) {
+  Widget _buildSectionTitle(String title, IconData icon, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
         children: [
-          Icon(icon, color: Colors.amberAccent, size: 24),
+          Icon(icon, color: color, size: 24),
           const SizedBox(width: 10),
           Text(
             title,
@@ -134,7 +134,7 @@ class LaughingGasScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.amberAccent.withValues(alpha: 0.3)),
+                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -172,14 +172,10 @@ class LaughingGasScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMatchedMovieRow(List<MatchedMovie> items, BuildContext context, WidgetRef ref) {
+  Widget _buildMatchedMovieRow(List<MatchedMovie> items, BuildContext context, WidgetRef ref, Color color) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Komedi filmi bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
-      );
+      return const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('Film bulunamadı.', style: TextStyle(color: AppColors.textSecondary)));
     }
-
     return SizedBox(
       height: 220,
       child: ListView.builder(
@@ -189,37 +185,27 @@ class LaughingGasScreen extends ConsumerWidget {
         itemBuilder: (context, index) {
           final matched = items[index];
           final tmdb = matched.tmdbMovie;
-
           return _buildPosterCard(
-            context: context,
-            title: tmdb.title,
-            posterUrl: tmdb.posterUrl,
-            voteAverage: tmdb.voteAverage,
-            onTap: () {
-              showMovieDetailSheet(
-                context,
-                mediaId: matched.streamId,
-                name: tmdb.title,
-                posterUrl: tmdb.posterUrl,
-                description: tmdb.overview,
-                year: tmdb.releaseDate.length >= 4 ? tmdb.releaseDate.substring(0, 4) : null,
-                rating: tmdb.voteAverage.toStringAsFixed(1),
-              );
-            },
+            context: context, title: tmdb.title, posterUrl: tmdb.posterUrl, voteAverage: tmdb.voteAverage, color: color,
+            onTap: () => showMovieDetailSheet(
+              context,
+              mediaId: matched.streamId,
+              name: tmdb.title,
+              posterUrl: tmdb.posterUrl,
+              description: tmdb.overview,
+              year: tmdb.releaseDate.length >= 4 ? tmdb.releaseDate.substring(0, 4) : null,
+              rating: tmdb.voteAverage.toStringAsFixed(1),
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildMatchedSeriesRow(List<MatchedSeries> items, BuildContext context, WidgetRef ref) {
+  Widget _buildMatchedSeriesRow(List<MatchedSeries> items, BuildContext context, WidgetRef ref, Color color) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Komedi dizisi bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
-      );
+      return const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('Dizi bulunamadı.', style: TextStyle(color: AppColors.textSecondary)));
     }
-
     return SizedBox(
       height: 220,
       child: ListView.builder(
@@ -229,24 +215,9 @@ class LaughingGasScreen extends ConsumerWidget {
         itemBuilder: (context, index) {
           final matched = items[index];
           final tmdb = matched.tmdbSeries;
-
           return _buildPosterCard(
-            context: context,
-            title: tmdb.name,
-            posterUrl: tmdb.posterUrl,
-            voteAverage: tmdb.voteAverage,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PlayerScreen(
-                    mediaId: matched.seriesId,
-                    mediaName: tmdb.name,
-                    mediaType: 'series',
-                  ),
-                ),
-              );
-            },
+            context: context, title: tmdb.name, posterUrl: tmdb.posterUrl, voteAverage: tmdb.voteAverage, color: color,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PlayerScreen(mediaId: matched.seriesId, mediaName: tmdb.name, mediaType: 'series'))),
           );
         },
       ),
@@ -254,11 +225,7 @@ class LaughingGasScreen extends ConsumerWidget {
   }
 
   Widget _buildPosterCard({
-    required BuildContext context,
-    required String title,
-    required String posterUrl,
-    required double voteAverage,
-    required VoidCallback onTap,
+    required BuildContext context, required String title, required String posterUrl, required double voteAverage, required Color color, required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -268,14 +235,8 @@ class LaughingGasScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.amberAccent.withValues(alpha: 0.3)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.amber.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
@@ -283,44 +244,25 @@ class LaughingGasScreen extends ConsumerWidget {
             fit: StackFit.expand,
             children: [
               posterUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: posterUrl,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Container(color: Colors.black26),
-                    )
+                  ? CachedNetworkImage(imageUrl: posterUrl, fit: BoxFit.cover, errorWidget: (_, __, ___) => Container(color: Colors.black26))
                   : Container(color: Colors.black26),
-              
               Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
+                bottom: 0, left: 0, right: 0,
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [Colors.black.withValues(alpha: 0.9), Colors.transparent],
-                    ),
+                    gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.black.withValues(alpha: 0.9), Colors.transparent]),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
+                      Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       Row(
                         children: [
                           const Icon(Icons.star_rounded, color: AppColors.warning, size: 14),
                           const SizedBox(width: 4),
-                          Text(
-                            voteAverage.toStringAsFixed(1),
-                            style: const TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
+                          Text(voteAverage.toStringAsFixed(1), style: const TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ],

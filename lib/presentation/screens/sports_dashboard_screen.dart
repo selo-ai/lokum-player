@@ -12,6 +12,7 @@ import '../controllers/vod_matcher_provider.dart';
 import '../controllers/language_provider.dart';
 import '../widgets/glass_container.dart';
 import 'player_screen.dart';
+import '../widgets/movie_detail_sheet.dart';
 
 class SportsDashboardScreen extends ConsumerStatefulWidget {
   const SportsDashboardScreen({super.key});
@@ -225,15 +226,14 @@ class _SportsDashboardScreenState extends ConsumerState<SportsDashboardScreen> {
 
           return GestureDetector(
             onTap: () {
-              Navigator.push(
+              showMovieDetailSheet(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => PlayerScreen(
-                    mediaId: matched.streamId,
-                    mediaName: tmdb.title,
-                    mediaType: 'movie',
-                  ),
-                ),
+                mediaId: matched.streamId,
+                name: tmdb.title,
+                posterUrl: tmdb.posterUrl,
+                description: tmdb.overview,
+                year: tmdb.releaseDate.length >= 4 ? tmdb.releaseDate.substring(0, 4) : null,
+                rating: tmdb.voteAverage.toStringAsFixed(1),
               );
             },
             child: _buildVodCard(tmdb.title, tmdb.posterUrl, tmdb.voteAverage),
@@ -302,15 +302,14 @@ class _SportsDashboardScreenState extends ConsumerState<SportsDashboardScreen> {
             final tmdb = item.tmdbMovie;
             return GestureDetector(
               onTap: () {
-                Navigator.push(
+                showMovieDetailSheet(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => PlayerScreen(
-                      mediaId: item.streamId,
-                      mediaName: tmdb.title,
-                      mediaType: 'movie',
-                    ),
-                  ),
+                  mediaId: item.streamId,
+                  name: tmdb.title,
+                  posterUrl: tmdb.posterUrl,
+                  description: tmdb.overview,
+                  year: tmdb.releaseDate.length >= 4 ? tmdb.releaseDate.substring(0, 4) : null,
+                  rating: tmdb.voteAverage.toStringAsFixed(1),
                 );
               },
               child: _buildVodCard(tmdb.title, tmdb.posterUrl, tmdb.voteAverage),

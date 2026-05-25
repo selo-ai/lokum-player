@@ -103,3 +103,23 @@ class MatchedSeries {
     required this.cover,
   });
 }
+
+class CarouselMedia {
+  final bool isMovie;
+  final dynamic tmdbData; 
+  final int streamId; 
+  final String coverOrIcon;
+
+  CarouselMedia({
+    required this.isMovie,
+    required this.tmdbData,
+    required this.streamId,
+    required this.coverOrIcon,
+  });
+
+  String get title => isMovie ? (tmdbData as TmdbMovie).title : (tmdbData as TmdbSeries).name;
+  String get backdropUrl => isMovie ? (tmdbData as TmdbMovie).backdropUrl : (tmdbData as TmdbSeries).backdropUrl;
+  double get voteAverage => isMovie ? (tmdbData as TmdbMovie).voteAverage : (tmdbData as TmdbSeries).voteAverage;
+  String get releaseDate => isMovie ? (tmdbData as TmdbMovie).releaseDate : (tmdbData as TmdbSeries).firstAirDate;
+  String get posterUrl => isMovie ? (tmdbData as TmdbMovie).posterUrl : (tmdbData as TmdbSeries).posterUrl;
+}

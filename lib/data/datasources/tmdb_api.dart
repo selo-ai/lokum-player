@@ -59,6 +59,56 @@ class TmdbApi {
     }
   }
 
+  Future<List<TmdbMovie>> getClassicMovies({int page = 1}) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/discover/movie',
+        queryParameters: {
+          'api_key': _apiKey,
+          'language': 'tr-TR',
+          'primary_release_date.lte': '1990-12-31',
+          'sort_by': 'vote_average.desc',
+          'vote_count.gte': 500,
+          'page': page,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List results = response.data['results'] ?? [];
+        return results.map((json) => TmdbMovie.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('TMDB API Error (getClassicMovies): $e');
+      return [];
+    }
+  }
+
+  Future<List<TmdbSeries>> getClassicSeries({int page = 1}) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/discover/tv',
+        queryParameters: {
+          'api_key': _apiKey,
+          'language': 'tr-TR',
+          'first_air_date.lte': '1990-12-31',
+          'sort_by': 'vote_average.desc',
+          'vote_count.gte': 100,
+          'page': page,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List results = response.data['results'] ?? [];
+        return results.map((json) => TmdbSeries.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('TMDB API Error (getClassicSeries): $e');
+      return [];
+    }
+  }
+
   Future<List<TmdbMovie>> getTrendingMovies({int page = 1}) async {
     try {
       final response = await _dio.get(
@@ -77,6 +127,28 @@ class TmdbApi {
       return [];
     } catch (e) {
       print('TMDB API Error (getTrendingMovies): $e');
+      return [];
+    }
+  }
+
+  Future<List<TmdbSeries>> getTrendingTvShows({int page = 1}) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/trending/tv/day',
+        queryParameters: {
+          'api_key': _apiKey,
+          'language': 'tr-TR',
+          'page': page,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List results = response.data['results'] ?? [];
+        return results.map((json) => TmdbSeries.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('TMDB API Error (getTrendingTvShows): $e');
       return [];
     }
   }

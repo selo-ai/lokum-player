@@ -12,6 +12,7 @@ class LocalStorage {
   static const String _keyEpgEnabled = 'epg_enabled';
   static const String _keyRecentCount = 'recent_items_count';
   static const String _keyLastUpdated = 'last_updated';
+  static const String _keyLiveUsageCount = 'live_usage_count';
 
   late Box _box;
 
@@ -150,6 +151,27 @@ class LocalStorage {
     }
 
     await _box.put(_keyHistory, history);
+  }
+
+  // --- Live Usage Tracker ---
+  Map<int, int> getLiveUsageCounts() {
+    final raw = _box.get(_keyLiveUsageCount);
+    if (raw == null) return {};
+    final map = <int, int>{};
+    for (var key in (raw as Map).keys) {
+      map[key as int] = raw[key] as int;
+    }
+    return map;
+  }
+
+  int getLiveUsage(int streamId) {
+    return getLiveUsageCounts()[streamId] ?? 0;
+  }
+
+  Future<void> incrementLiveUsage(int streamId) async {
+    final counts = getLiveUsageCounts();
+    counts[streamId] = (counts[streamId] ?? 0) + 1;
+    await _box.put(_keyLiveUsageCount, counts);
   }
 
   // --- Language Preference ---

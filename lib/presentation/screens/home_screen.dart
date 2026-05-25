@@ -12,6 +12,8 @@ import '../controllers/providers.dart';
 import '../widgets/glass_container.dart';
 import 'media_list_screen.dart';
 import 'player_screen.dart';
+import '../controllers/vod_matcher_provider.dart';
+import '../../data/models/tmdb_models.dart';
 import 'login_screen.dart';
 import '../controllers/language_provider.dart';
 import 'settings_screen.dart';
@@ -19,7 +21,13 @@ import 'favorites_screen.dart';
 import 'sports_dashboard_screen.dart';
 import 'horror_room_screen.dart';
 import 'laughing_gas_screen.dart';
+import 'kids_club_screen.dart';
+import 'action_room_screen.dart';
+import 'scifi_room_screen.dart';
+import 'nostalgia_room_screen.dart';
 import 'ai_assistant_sheet.dart';
+import 'live_tv_dashboard.dart';
+import '../widgets/movie_detail_sheet.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -47,6 +55,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final PageController _bannerController = PageController();
   int _currentBannerIndex = 0;
   Timer? _bannerTimer;
+  bool _isHighlightsExpanded = false;
 
   @override
   void initState() {
@@ -62,10 +71,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _startBannerTimer() {
     _bannerTimer?.cancel();
     _bannerTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      final state = ref.read(iptvControllerProvider);
-      final recommendations = _getRecommendations(state);
+      final asyncRec = ref.read(mixedCarouselProvider);
+      final recommendations = asyncRec.value ?? [];
       if (recommendations.isNotEmpty) {
-        final nextIndex = (_currentBannerIndex + 1) % recommendations.length;
+        final int nextIndex = ((_currentBannerIndex + 1) % recommendations.length).toInt();
         if (_bannerController.hasClients) {
           _bannerController.animateToPage(
             nextIndex,
@@ -75,22 +84,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
       }
     });
-  }
-
-  List<dynamic> _getRecommendations(IptvState state) {
-    final List<dynamic> recommendations = [];
-    int movieIdx = 0;
-    int seriesIdx = 0;
-    
-    while (recommendations.length < 3 && (movieIdx < state.movies.length || seriesIdx < state.series.length)) {
-      if (movieIdx < state.movies.length && recommendations.length < 3) {
-        recommendations.add(state.movies[movieIdx++]);
-      }
-      if (seriesIdx < state.series.length && recommendations.length < 3) {
-        recommendations.add(state.series[seriesIdx++]);
-      }
-    }
-    return recommendations;
   }
 
   void _showSeriesDetails(BuildContext context, dynamic serie) {
@@ -119,7 +112,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final iptvState = ref.watch(iptvControllerProvider);
 
-    // List of screens for bottom navigation
     final List<Widget> pages = [
       _buildDashboard(iptvState),
       const MediaListScreen(contentType: 'live'),
@@ -359,13 +351,153 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Widget _buildHighlightsRow(String title, List<dynamic> items, IptvState state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 4, height: 18,
+                decoration: BoxDecoration(color: AppColors.secondary, borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(width: 8),
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 180,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              bool isMovie = false;
+              dynamic tmdbData;
+              String imagePath = '';
+              int streamId = 0;
+              
+              if (item is CarouselMedia) {
+                isMovie = item.isMovie;
+                tmdbData = item.tmdbData;
+                imagePath = item.posterUrl.isNotEmpty ? item.posterUrl : item.coverOrIcon;
+                streamId = item.streamId;
+              } else if (item is MatchedMovie) {
+                isMovie = true;
+                tmdbData = item.tmdbMovie;
+                imagePath = tmdbData.posterUrl.isNotEmpty ? tmdbData.posterUrl : item.streamIcon;
+                streamId = item.streamId;
+              } else if (item is MatchedSeries) {
+                isMovie = false;
+                tmdbData = item.tmdbSeries;
+                imagePath = tmdbData.posterUrl.isNotEmpty ? tmdbData.posterUrl : item.cover;
+                streamId = item.seriesId;
+              }
+
+              final String titleText = isMovie ? (tmdbData as TmdbMovie).title : (tmdbData as TmdbSeries).name;
+              final double voteAverage = isMovie ? (tmdbData as TmdbMovie).voteAverage : (tmdbData as TmdbSeries).voteAverage;
+
+              return GestureDetector(
+                onTap: () {
+                  if (isMovie) {
+                    showMovieDetailSheet(
+                      context,
+                      mediaId: streamId,
+                      name: titleText,
+                      posterUrl: imagePath,
+                      description: isMovie ? (tmdbData as TmdbMovie).overview : null,
+                      year: isMovie 
+                          ? ((tmdbData as TmdbMovie).releaseDate.length >= 4 ? (tmdbData as TmdbMovie).releaseDate.substring(0, 4) : null)
+                          : null,
+                      rating: voteAverage.toStringAsFixed(1),
+                    );
+                  } else {
+                    try {
+                      final iptvSeries = state.series.firstWhere((s) => s.seriesId == streamId);
+                      _showSeriesDetails(context, iptvSeries);
+                    } catch (_) {}
+                  }
+                },
+                child: Container(
+                  width: 120,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.borderLight.withOpacity(0.1)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CachedNetworkImage(
+                          imageUrl: imagePath,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(color: AppColors.surface),
+                          errorWidget: (_, __, ___) => Container(color: AppColors.surface),
+                        ),
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Colors.black.withOpacity(0.9), Colors.transparent],
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          left: 12, bottom: 12, right: 12,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                titleText,
+                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '★ ${voteAverage.toStringAsFixed(1)}',
+                                style: TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
   // --- Dashboard View ---
   Widget _buildDashboard(IptvState state) {
     final history = ref.read(iptvControllerProvider.notifier).getHistory();
     
 
 
-    final recommendations = _getRecommendations(state);
+    final asyncRec = ref.watch(mixedCarouselProvider);
+    final recommendations = asyncRec.value ?? [];
+
+    final asyncMoviesRec = ref.watch(trendingMoviesProvider);
+    final movieRecommendations = asyncMoviesRec.value ?? [];
+
+    final asyncSeriesRec = ref.watch(trendingSeriesProvider);
+    final seriesRecommendations = asyncSeriesRec.value ?? [];
+
+    final asyncDocsRec = ref.watch(trendingDocumentariesProvider);
+    final docsRecommendations = asyncDocsRec.value ?? [];
 
     String getRelativeTime(DateTime? time) {
       if (time == null) return ref.tr('last_updated_never');
@@ -541,30 +673,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     },
                     itemCount: recommendations.length,
                     itemBuilder: (context, index) {
-                      final item = recommendations[index];
-                      final isMovie = item is IptvMovie;
-                      final imagePath = isMovie ? item.icon : item.cover;
-                      final String tagText = isMovie ? ref.tr('dashboard_featured_movie') : ref.tr('dashboard_featured_series');
-                      final Color tagBgColor = isMovie ? AppColors.primary : AppColors.secondary;
-                      final Color tagTextColor = isMovie ? Colors.black : Colors.white;
-                      final String subtitleText = isMovie 
-                          ? '${item.year ?? "2026"} • VOD' 
-                          : '${item.releaseDate != null && item.releaseDate!.length >= 4 ? item.releaseDate!.substring(0, 4) : "2026"} • ${ref.tr('media_series_label').toUpperCase()}';
+                      final CarouselMedia item = recommendations[index];
+                      final imagePath = item.backdropUrl.isNotEmpty ? item.backdropUrl : item.coverOrIcon;
+                      final String tagText = item.isMovie ? ref.tr('dashboard_featured_movie') : ref.tr('dashboard_featured_series');
+                      final Color tagBgColor = item.isMovie ? AppColors.primary : AppColors.secondary;
+                      final Color tagTextColor = item.isMovie ? Colors.black : Colors.white;
+                      final String subtitleText = '${item.releaseDate.isNotEmpty ? item.releaseDate.split('-').first : "2026"} • VOD • ★ ${item.voteAverage.toStringAsFixed(1)}';
 
                       return GestureDetector(
                         onTap: () {
-                          if (isMovie) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => PlayerScreen(
-                                  mediaId: item.streamId,
-                                  mediaName: item.name,
-                                  mediaType: 'movie',
-                                ),
-                              ),
+                          if (item.isMovie) {
+                            showMovieDetailSheet(
+                              context,
+                              mediaId: item.streamId,
+                              name: item.title,
+                              posterUrl: item.coverOrIcon,
+                              description: item.tmdbData is TmdbMovie ? (item.tmdbData as TmdbMovie).overview : null,
+                              year: item.releaseDate.length >= 4 ? item.releaseDate.substring(0, 4) : null,
+                              rating: item.voteAverage.toStringAsFixed(1),
                             );
                           } else {
-                            _showSeriesDetails(context, item);
+                            try {
+                              final iptvSeries = state.series.firstWhere((s) => s.seriesId == item.streamId);
+                              _showSeriesDetails(context, iptvSeries);
+                            } catch (_) {}
                           }
                         },
                         child: Container(
@@ -581,7 +713,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               children: [
                                 // Banner Image
                                 Positioned.fill(
-                                  child: imagePath != null
+                                  child: imagePath.isNotEmpty
                                       ? CachedNetworkImage(
                                           imageUrl: imagePath,
                                           fit: BoxFit.cover,
@@ -621,7 +753,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        item.name,
+                                        item.title,
                                         style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -669,20 +801,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(height: 28),
           ],
-          // Sports Center Banner
+
+          // Expandable Highlights Banner
           GestureDetector(
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SportsDashboardScreen()),
-              );
+              setState(() {
+                _isHighlightsExpanded = !_isHighlightsExpanded;
+              });
             },
             child: Container(
               width: double.infinity,
-              constraints: const BoxConstraints(minHeight: 100),
+              constraints: const BoxConstraints(minHeight: 80),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 gradient: LinearGradient(
-                  colors: [Colors.black, AppColors.success.withOpacity(0.8)],
+                  colors: [Colors.black, AppColors.primary.withOpacity(0.8)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -692,36 +825,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Positioned(
                     right: -20,
                     bottom: -20,
-                    child: Icon(Icons.sports_soccer_rounded, size: 100, color: Colors.white.withOpacity(0.05)),
+                    child: Icon(Icons.star_rounded, size: 100, color: Colors.white.withOpacity(0.05)),
                   ),
                   Padding(
                     padding: const EdgeInsets.all(20),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
-                          child: const Icon(Icons.sports_soccer_rounded, color: AppColors.success, size: 28),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+                              child: const Icon(Icons.star_rounded, color: Colors.white, size: 28),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    'ÖNE ÇIKANLAR',
+                                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Trend filmler, diziler ve belgeseller',
+                                    style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              _isHighlightsExpanded ? Icons.keyboard_arrow_up : Icons.arrow_forward_ios_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
+                        
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          child: _isHighlightsExpanded ? Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                ref.tr('home_sports_center'),
-                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                ref.tr('home_sports_desc'),
-                                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
-                              ),
+                              const SizedBox(height: 24),
+                              if (movieRecommendations.isNotEmpty) _buildHighlightsRow('Trend Filmler', movieRecommendations, state),
+                              if (seriesRecommendations.isNotEmpty) _buildHighlightsRow('Trend Diziler', seriesRecommendations, state),
+                              if (docsRecommendations.isNotEmpty) _buildHighlightsRow('Trend Belgeseller', docsRecommendations, state),
                             ],
-                          ),
+                          ) : const SizedBox(width: double.infinity, height: 0),
                         ),
-                        const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
                       ],
                     ),
                   ),
@@ -730,128 +886,68 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Horror Room Banner
-          GestureDetector(
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const HorrorRoomScreen()),
-              );
-            },
-            child: Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(minHeight: 100),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                gradient: LinearGradient(
-                  colors: [Colors.black, Colors.red.shade900],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    right: -20,
-                    bottom: -20,
-                    child: Icon(Icons.warning_amber_rounded, size: 100, color: Colors.white.withOpacity(0.05)),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
-                          child: const Icon(Icons.local_fire_department_rounded, color: Colors.redAccent, size: 28),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                ref.tr('home_horror_room'),
-                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                ref.tr('home_horror_desc'),
-                                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // SPOR - ÇOCUK - KORKU - GÜLME - ADRENALİN - GALAKSİ - NOSTALJİ
+          _buildBanner(
+            context,
+            ref.tr('home_sports_center'),
+            ref.tr('home_sports_desc'),
+            Icons.sports_soccer_rounded,
+            AppColors.success,
+            const SportsDashboardScreen(),
           ),
           const SizedBox(height: 16),
-
-          // Laughing Gas Banner
-          GestureDetector(
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const LaughingGasScreen()),
-              );
-            },
-            child: Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(minHeight: 100),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                gradient: LinearGradient(
-                  colors: [Colors.black, Colors.amber.shade900],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    right: -20,
-                    bottom: -20,
-                    child: Icon(Icons.theater_comedy_rounded, size: 100, color: Colors.white.withValues(alpha: 0.05)),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), shape: BoxShape.circle),
-                          child: const Icon(Icons.emoji_emotions_rounded, color: Colors.amberAccent, size: 28),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                'GÜLME GAZI',
-                                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Komedi filmleri ve dizileri',
-                                style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          _buildBanner(
+            context,
+            'ÇOCUK KULÜBÜ',
+            'Çocuklara özel kanallar, çizgi filmler',
+            Icons.smart_toy_rounded,
+            Colors.orangeAccent,
+            const KidsClubScreen(),
+          ),
+          const SizedBox(height: 16),
+          _buildBanner(
+            context,
+            ref.tr('home_horror_room'),
+            ref.tr('home_horror_desc'),
+            Icons.local_fire_department_rounded,
+            Colors.redAccent,
+            const HorrorRoomScreen(),
+          ),
+          const SizedBox(height: 16),
+          _buildBanner(
+            context,
+            'GÜLME GAZI',
+            'Komedi filmleri ve dizileri',
+            Icons.emoji_emotions_rounded,
+            Colors.amberAccent,
+            const LaughingGasScreen(),
+          ),
+          const SizedBox(height: 16),
+          _buildBanner(
+            context,
+            'ADRENALİN BOOM',
+            'Aksiyon ve macera dolu içerikler',
+            Icons.local_fire_department_rounded,
+            Colors.red,
+            const ActionRoomScreen(),
+          ),
+          const SizedBox(height: 16),
+          _buildBanner(
+            context,
+            'GALAKSİ VE ÖTESİ',
+            'Bilim kurgu ve uzay temalı yapımlar',
+            Icons.satellite_alt_rounded,
+            Colors.deepPurpleAccent,
+            const ScifiRoomScreen(),
+          ),
+          const SizedBox(height: 16),
+          _buildBanner(
+            context,
+            'NOSTALJİ RÜZGARI',
+            'Eski western ve klasik yapımlar',
+            Icons.radio_rounded,
+            Colors.brown,
+            const NostalgiaRoomScreen(),
           ),
           const SizedBox(height: 28),
           // Watch History ("Son İzlenenler")
@@ -869,18 +965,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 itemBuilder: (context, idx) {
                   final item = history[idx];
                   return GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PlayerScreen(
+                      onTap: () {
+                        if (item['type'] == 'live') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PlayerScreen(
+                                mediaId: item['id'],
+                                mediaName: item['name'],
+                                mediaType: 'live',
+                              ),
+                            ),
+                          );
+                        } else if (item['type'] == 'movie') {
+                          showMovieDetailSheet(
+                            context,
                             mediaId: item['id'],
-                            mediaName: item['name'],
-                            mediaType: item['type'],
-                            episodeExtension: item['extra'], // Pass episode extra if exists
-                          ),
-                        ),
-                      );
-                    },
+                            name: item['name'],
+                            posterUrl: item['icon'] ?? '',
+                          );
+                        } else {
+                          // Series
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PlayerScreen(
+                                mediaId: item['id'],
+                                mediaName: item['name'],
+                                mediaType: 'series',
+                                episodeExtension: item['extra'], 
+                              ),
+                            ),
+                          );
+                        }
+                      },
                     child: Container(
                       width: 150,
                       margin: const EdgeInsets.only(right: 12),
@@ -946,4 +1062,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 
 
+  Widget _buildBanner(BuildContext context, String title, String desc, IconData icon, Color color, Widget destination) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => destination));
+      },
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 100),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            colors: [Colors.black, color.withValues(alpha: 0.8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -20,
+              bottom: -20,
+              child: Icon(icon, size: 100, color: Colors.white.withValues(alpha: 0.05)),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), shape: BoxShape.circle),
+                    child: Icon(icon, color: color, size: 28),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text(desc, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

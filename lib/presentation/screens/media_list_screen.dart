@@ -2,12 +2,14 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/utils/live_tv_categorizer.dart';
 import '../../core/constants/colors.dart';
 import '../../data/models/iptv_models.dart';
 import '../controllers/iptv_controller.dart';
 import '../controllers/providers.dart';
 import '../controllers/language_provider.dart';
 import 'player_screen.dart';
+import '../widgets/movie_detail_sheet.dart';
 
 const String RECENTLY_ADDED_ID = 'RECENTLY_ADDED_CUSTOM_ID';
 
@@ -948,8 +950,17 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
 
     if (widget.contentType == 'live') {
       categories = state.liveCategories;
-
-      filteredItems = controller.getFilteredLiveChannels();
+      
+      if (state.selectedLiveCategoryId.startsWith('#SUPER#')) {
+        final superCat = state.selectedLiveCategoryId.replaceAll('#SUPER#', '');
+        final catMap = {for (var c in categories) c.id: c.name};
+        filteredItems = state.liveChannels.where((c) {
+          final rawCatName = catMap[c.categoryId] ?? '';
+          return LiveTvCategorizer.extractSuperCategory(rawCatName.isNotEmpty ? rawCatName : c.displayName) == superCat;
+        }).toList();
+      } else {
+        filteredItems = controller.getFilteredLiveChannels();
+      }
       if (_showOnlyFavorites) {
         final favorites = state.favoriteLive;
         filteredItems = filteredItems.where((item) => favorites.any((f) => f.streamId == item.streamId)).toList();
@@ -1286,7 +1297,9 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
               child: filteredItems.isEmpty
                   ? _buildEmptyState()
                   : widget.contentType == 'live'
-                      ? _buildLiveList(filteredItems)
+                      ? (state.selectedLiveCategoryId.isEmpty
+                          ? _buildLiveDashboard(filteredItems)
+                          : _buildLiveList(filteredItems))
                       : _buildMediaGrid(filteredItems),
             ),
           ],
@@ -1332,33 +1345,252 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
     );
   }
 
-  // --- Live TV List View ---
-  Widget _buildLiveList(List<dynamic> items) {
-    final groupedList = _groupChannels(items);
+  // --- Live TV VOD Style Dashboard (Tümü) ---
+  Widget _buildLiveDashboard(List<dynamic> items) {
+    final channels = items.cast<IptvLiveChannel>();
+    final Map<String, List<IptvLiveChannel>> superGroups = {};
     
-    if (_liveGridColumns <= 1) {
-      return ListView.builder(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 90),
-        itemCount: groupedList.length,
-        itemBuilder: (context, index) {
-          final group = groupedList[index];
-          return GroupedChannelTile(group: group);
-        },
-      );
+    final categories = ref.read(iptvControllerProvider).liveCategories;
+    final catMap = {for (var c in categories) c.id: c.name};
+
+    for (final channel in channels) {
+      final rawCatName = catMap[channel.categoryId] ?? '';
+      final superCat = LiveTvCategorizer.extractSuperCategory(rawCatName.isNotEmpty ? rawCatName : channel.displayName);
+      superGroups.putIfAbsent(superCat, () => []).add(channel);
     }
     
-    return GridView.builder(
-      padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 90),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: _liveGridColumns,
-        childAspectRatio: 1.0,
-        crossAxisSpacing: _liveGridColumns >= 4 ? 8.0 : 12.0,
-        mainAxisSpacing: _liveGridColumns >= 4 ? 8.0 : 12.0,
-      ),
-      itemCount: groupedList.length,
+    final sortedSuperCats = superGroups.keys.toList()..sort((a, b) {
+       final order = ['SPOR', 'ULUSAL', 'HABER', 'ÇOCUK', 'BELGESEL', 'SİNEMA', 'MÜZİK', 'RADYO', 'YETİŞKİN', 'DİĞER'];
+       int indexA = order.indexOf(a);
+       int indexB = order.indexOf(b);
+       if (indexA == -1) indexA = 99;
+       if (indexB == -1) indexB = 99;
+       if (indexA != indexB) return indexA.compareTo(indexB);
+       return a.compareTo(b);
+    });
+
+    final favorites = ref.read(iptvControllerProvider).favoriteLive;
+    final hasFavorites = favorites.isNotEmpty;
+    final itemCount = sortedSuperCats.length + (hasFavorites ? 1 : 0);
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 90, top: 16),
+      itemCount: itemCount,
       itemBuilder: (context, index) {
-        final group = groupedList[index];
-        return GroupedChannelGridTile(group: group, columns: _liveGridColumns);
+        final bool isFavRow = hasFavorites && index == 0;
+        final superCat = isFavRow ? 'FAVORİLER' : sortedSuperCats[hasFavorites ? index - 1 : index];
+        
+        final List<GroupedLiveChannel> groupedList;
+        if (isFavRow) {
+           groupedList = _groupChannels(favorites);
+        } else {
+           final superCatChannels = superGroups[superCat]!;
+           groupedList = _groupChannels(superCatChannels);
+           groupedList.sort((a, b) {
+             final notifier = ref.read(iptvControllerProvider.notifier);
+             int countA = a.variations.fold<int>(0, (sum, v) => sum + notifier.getLiveUsage(v.streamId));
+             int countB = b.variations.fold<int>(0, (sum, v) => sum + notifier.getLiveUsage(v.streamId));
+             if (countA != countB) return countB.compareTo(countA);
+             return a.baseName.compareTo(b.baseName);
+           });
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 20,
+                    decoration: BoxDecoration(color: isFavRow ? AppColors.warning : AppColors.primary, borderRadius: BorderRadius.circular(2)),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(superCat, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 100, // Reduced height since we have no text
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: isFavRow ? groupedList.length : (groupedList.length > 5 ? 5 : groupedList.length) + 1,
+                itemBuilder: (context, chIndex) {
+                  final isLast = !isFavRow && chIndex == (groupedList.length > 5 ? 5 : groupedList.length);
+                  
+                  if (isLast) {
+                    return GestureDetector(
+                      onTap: () {
+                        ref.read(iptvControllerProvider.notifier).selectLiveCategory('#SUPER#$superCat');
+                      },
+                      child: Container(
+                        width: 100, // Square card
+                        margin: const EdgeInsets.only(right: 12, bottom: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.borderDark),
+                        ),
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.arrow_forward_rounded, color: AppColors.primary, size: 28),
+                              SizedBox(height: 8),
+                              Text('Tümünü\nGöster', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final group = groupedList[chIndex];
+                  final mainChannel = group.mainChannel;
+                  
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PlayerScreen(
+                            mediaId: mainChannel.streamId,
+                            mediaName: mainChannel.displayName,
+                            mediaType: 'live',
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 100, // Square card to match height 100
+                      margin: const EdgeInsets.only(right: 12, bottom: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.borderDark),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: mainChannel.icon != null && mainChannel.icon!.isNotEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                child: CachedNetworkImage(
+                                  imageUrl: mainChannel.icon!,
+                                  fit: BoxFit.contain,
+                                  errorWidget: (_, __, ___) => _buildFallbackPoster(mainChannel.displayName),
+                                ),
+                              )
+                            : _buildFallbackPoster(mainChannel.displayName),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- Live TV List View ---
+  Widget _buildLiveList(List<dynamic> items) {
+    final channels = items.cast<IptvLiveChannel>();
+    final Map<String, List<IptvLiveChannel>> networkGroups = {};
+    for (final channel in channels) {
+      final network = LiveTvCategorizer.extractNetwork(channel.displayName, '');
+      networkGroups.putIfAbsent(network, () => []).add(channel);
+    }
+    
+    final sortedNetworks = networkGroups.keys.toList()..sort((a, b) {
+      if (a == 'DİĞER') return 1;
+      if (b == 'DİĞER') return -1;
+      
+      final lenA = networkGroups[a]!.length;
+      final lenB = networkGroups[b]!.length;
+      if (lenA != lenB) {
+        return lenB.compareTo(lenA); // Descending
+      }
+      return a.compareTo(b); // Fallback to alphabetical
+    });
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 90),
+      itemCount: sortedNetworks.length,
+      itemBuilder: (context, index) {
+        final network = sortedNetworks[index];
+        final networkChannels = networkGroups[network]!;
+        final groupedList = _groupChannels(networkChannels);
+
+        return Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.borderDark),
+            ),
+            child: ExpansionTile(
+              initiallyExpanded: index == 0, // Expands the first one by default
+              iconColor: AppColors.primary,
+              collapsedIconColor: Colors.white54,
+              title: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: AppColors.success,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    network,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${networkChannels.length} Kanal',
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
+              children: [
+                if (_liveGridColumns <= 1)
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(left: 8, right: 8, bottom: 12),
+                    itemCount: groupedList.length,
+                    itemBuilder: (context, idx) {
+                      return GroupedChannelTile(group: groupedList[idx]);
+                    },
+                  )
+                else
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(left: 8, right: 8, bottom: 12),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: _liveGridColumns,
+                      childAspectRatio: 1.0,
+                      crossAxisSpacing: _liveGridColumns >= 4 ? 8.0 : 12.0,
+                      mainAxisSpacing: _liveGridColumns >= 4 ? 8.0 : 12.0,
+                    ),
+                    itemCount: groupedList.length,
+                    itemBuilder: (context, idx) {
+                      return GroupedChannelGridTile(group: groupedList[idx], columns: _liveGridColumns);
+                    },
+                  )
+              ],
+            ),
+          ),
+        );
       },
     );
   }
@@ -1737,14 +1969,14 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
     return GestureDetector(
       onTap: () {
         if (isMovie) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => PlayerScreen(
-                mediaId: item.streamId,
-                mediaName: item.name,
-                mediaType: 'movie',
-              ),
-            ),
+          showMovieDetailSheet(
+            context,
+            mediaId: int.parse(item.streamId.toString()),
+            name: item.name,
+            posterUrl: item.icon,
+            rating: item.rating?.toString(),
+            description: null, // TMDB details could be loaded later, or if we have VOD info
+            year: null,
           );
         } else if (isVirtual) {
           _showDailySeriesEpisodesSheet(context, item);
@@ -2579,19 +2811,33 @@ class GroupedChannelGridTile extends ConsumerWidget {
                 Text(group.baseName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 ...variations.map((v) {
-                  return ListTile(
-                    title: Text(v.displayName, style: const TextStyle(color: Colors.white)),
-                    trailing: const Icon(Icons.play_circle_fill_rounded, color: AppColors.primary),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PlayerScreen(
-                            mediaId: v.streamId,
-                            mediaName: v.displayName,
-                            mediaType: 'live',
+                  return Consumer(
+                    builder: (context, ref, _) {
+                      final isFav = ref.watch(iptvControllerProvider).favoriteLive.any((f) => f.streamId == v.streamId);
+                      return ListTile(
+                        title: Text(v.displayName, style: const TextStyle(color: Colors.white)),
+                        trailing: IconButton(
+                          icon: Icon(
+                            isFav ? Icons.star_rounded : Icons.star_border_rounded,
+                            color: isFav ? AppColors.warning : AppColors.textSecondary,
+                            size: 24,
                           ),
+                          onPressed: () {
+                            ref.read(iptvControllerProvider.notifier).toggleFavoriteLive(v);
+                          },
                         ),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PlayerScreen(
+                                mediaId: v.streamId,
+                                mediaName: v.displayName,
+                                mediaType: 'live',
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   );

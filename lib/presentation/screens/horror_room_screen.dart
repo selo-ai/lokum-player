@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/colors.dart';
 import '../../data/models/tmdb_models.dart';
+import '../widgets/movie_detail_sheet.dart';
+import '../../data/models/iptv_models.dart';
 import '../controllers/vod_matcher_provider.dart';
 import '../controllers/language_provider.dart';
 import 'player_screen.dart';
@@ -60,6 +62,11 @@ class HorrorRoomScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      _buildSectionTitle(ref.tr('horror_channels'), Icons.tv_rounded),
+                      _buildLiveChannelsRow(ref.watch(horrorChannelsProvider), context),
+
+                      const SizedBox(height: 40),
+
                       _buildSectionTitle(ref.tr('horror_movies'), Icons.movie_creation_rounded),
                       ref.watch(horrorMoviesProvider).when(
                         data: (matchedMovies) => _buildMatchedMovieRow(matchedMovies, context, ref),
@@ -102,6 +109,70 @@ class HorrorRoomScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context) {
+    if (items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20),
+        child: Text('Kanal bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      );
+    }
+
+    return SizedBox(
+      height: 120,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final channel = items[index];
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => PlayerScreen(mediaId: channel.streamId, mediaName: channel.name, mediaType: 'live')));
+            },
+            child: Container(
+              width: 140,
+              margin: const EdgeInsets.symmetric(horizontal: 6),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    channel.icon != null && channel.icon!.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: channel.icon!,
+                            fit: BoxFit.contain,
+                            errorWidget: (_, __, ___) => const Center(child: Icon(Icons.tv, color: Colors.white54, size: 40)),
+                          )
+                        : const Center(child: Icon(Icons.tv, color: Colors.white54, size: 40)),
+                    Positioned(
+                      bottom: 0, left: 0, right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        color: Colors.black87,
+                        child: Text(
+                          channel.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildMatchedMovieRow(List<MatchedMovie> items, BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
       return Padding(
@@ -126,15 +197,14 @@ class HorrorRoomScreen extends ConsumerWidget {
             posterUrl: tmdb.posterUrl,
             voteAverage: tmdb.voteAverage,
             onTap: () {
-              Navigator.push(
+              showMovieDetailSheet(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => PlayerScreen(
-                    mediaId: matched.streamId,
-                    mediaName: tmdb.title,
-                    mediaType: 'movie',
-                  ),
-                ),
+                mediaId: matched.streamId,
+                name: tmdb.title,
+                posterUrl: tmdb.posterUrl,
+                description: tmdb.overview,
+                year: tmdb.releaseDate.length >= 4 ? tmdb.releaseDate.substring(0, 4) : null,
+                rating: tmdb.voteAverage.toStringAsFixed(1),
               );
             },
           );

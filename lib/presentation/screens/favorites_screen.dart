@@ -9,6 +9,7 @@ import '../controllers/language_provider.dart';
 import '../widgets/glass_container.dart';
 import 'player_screen.dart';
 import 'media_list_screen.dart'; // Import for SeriesDetailSheet
+import '../widgets/movie_detail_sheet.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
   const FavoritesScreen({super.key});
@@ -296,14 +297,13 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
         final movie = list[index];
         return GestureDetector(
           onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => PlayerScreen(
-                  mediaId: movie.streamId,
-                  mediaName: movie.name,
-                  mediaType: 'movie',
-                ),
-              ),
+            showMovieDetailSheet(
+              context,
+              mediaId: movie.streamId,
+              name: movie.name,
+              posterUrl: movie.icon,
+              year: movie.year,
+              rating: movie.rating?.toString(),
             );
           },
           child: Container(
@@ -435,14 +435,13 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
         return GestureDetector(
           onTap: () {
             if (isMovieItem) {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => PlayerScreen(
-                    mediaId: series.streamId,
-                    mediaName: series.name,
-                    mediaType: 'movie',
-                  ),
-                ),
+              showMovieDetailSheet(
+                context,
+                mediaId: series.streamId,
+                name: series.name,
+                posterUrl: series.icon,
+                year: series.year,
+                rating: series.rating?.toString(),
               );
             } else {
               _showSeriesDetails(context, series);

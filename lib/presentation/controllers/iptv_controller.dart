@@ -135,6 +135,29 @@ class IptvController extends Notifier<IptvState> {
 
   // --- Load All Data ---
   Future<void> loadAllContent() async {
+    await _loadData();
+  }
+
+  bool _isAsianContent(String text) {
+    if (text.isEmpty) return false;
+    final lower = text.toLowerCase();
+    
+    // Check for Asian characters (Chinese, Japanese, Korean)
+    if (RegExp(r'[\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]').hasMatch(text)) {
+      return true;
+    }
+    
+    // Check for specific keywords in titles/categories
+    final keywords = ['kore', 'korea', 'asya', 'asian', 'japon', 'japan', 'anime', 'uzakdoğu', 'uzak dogu', 'chinese', 'çin'];
+    for (final kw in keywords) {
+      if (RegExp(r'\b' + kw + r'\b').hasMatch(lower)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _loadData() async {
     final creds = ref.read(authControllerProvider).credentials;
     if (creds == null) return;
 
@@ -151,23 +174,27 @@ class IptvController extends Notifier<IptvState> {
 
       final liveCats = [
         IptvCategory(id: '', name: 'Tümü', type: 'live'),
-        ...rawLiveCats,
+        ...rawLiveCats.where((c) => !_isAsianContent(c.name)),
       ];
       final movieCats = [
         IptvCategory(id: '', name: 'Tümü', type: 'movie'),
-        ...rawMovieCats,
+        ...rawMovieCats.where((c) => !_isAsianContent(c.name)),
       ];
       final seriesCats = [
         IptvCategory(id: '', name: 'Tümü', type: 'series'),
-        ...rawSeriesCats,
+        ...rawSeriesCats.where((c) => !_isAsianContent(c.name)),
       ];
 
 
 
       // 2. Fetch All Channels/Movies/Series
-      final channels = await api.getLiveChannels(creds);
-      final movies = await api.getMovies(creds);
-      final series = await api.getSeries(creds);
+      final rawChannels = await api.getLiveChannels(creds);
+      final rawMovies = await api.getMovies(creds);
+      final rawSeries = await api.getSeries(creds);
+
+      final channels = rawChannels.where((c) => !_isAsianContent(c.name)).toList();
+      final movies = rawMovies.where((m) => !_isAsianContent(m.name)).toList();
+      final series = rawSeries.where((s) => !_isAsianContent(s.name)).toList();
 
       // 3. Load Favorites
       final favoriteLiveIds = storage.getFavoriteLiveIds();
@@ -365,7 +392,7 @@ class IptvController extends Notifier<IptvState> {
 
   // --- Watch History ---
   Future<void> saveToWatchHistory({
-    required String type,
+    required String type, // 'live', 'movie', 'episode'
     required int id,
     required String name,
     String? icon,
@@ -373,6 +400,14 @@ class IptvController extends Notifier<IptvState> {
   }) async {
     final storage = ref.read(localStorageProvider);
     await storage.addToHistory(type: type, id: id, name: name, icon: icon, extra: extra);
+    if (type == 'live') {
+      await storage.incrementLiveUsage(id);
+    }
+  }
+
+  int getLiveUsage(int streamId) {
+    final storage = ref.read(localStorageProvider);
+    return storage.getLiveUsage(streamId);
   }
 
   List<Map<String, dynamic>> getHistory() {

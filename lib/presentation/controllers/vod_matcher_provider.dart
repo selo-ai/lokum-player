@@ -4,6 +4,148 @@ import '../../data/models/iptv_models.dart';
 import '../../data/models/tmdb_models.dart';
 import 'iptv_controller.dart';
 
+final trendingMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
+  final iptvState = ref.watch(iptvControllerProvider);
+  final iptvMovies = iptvState.movies;
+
+  if (iptvMovies.isEmpty) return [];
+
+  final tmdbApi = ref.read(tmdbApiProvider);
+  final List<TmdbMovie> trendingTmdb = await tmdbApi.getTrendingMovies();
+
+  final List<MatchedMovie> matched = [];
+
+  for (final tmdbMovie in trendingTmdb) {
+    if (tmdbMovie.backdropPath.isEmpty) continue; // Carousel needs backdrops
+    final tmdbName = _cleanName(tmdbMovie.title);
+    final tmdbOriginal = _cleanName(tmdbMovie.originalTitle);
+
+    try {
+      final match = iptvMovies.firstWhere((iptvMovie) {
+        final iptvName = _cleanName(iptvMovie.name);
+        if (iptvName == tmdbName || iptvName == tmdbOriginal) return true;
+        if (iptvName.contains(tmdbName) && tmdbName.length > 5) return true;
+        return false;
+      });
+
+      // Avoid duplicates
+      if (!matched.any((m) => m.streamId == match.streamId)) {
+        matched.add(MatchedMovie(
+          tmdbMovie: tmdbMovie,
+          streamId: match.streamId,
+          streamIcon: match.icon ?? '',
+        ));
+      }
+    } catch (_) {}
+  }
+  return matched;
+});
+
+final trendingSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) async {
+  final iptvState = ref.watch(iptvControllerProvider);
+  final iptvSeriesList = iptvState.series;
+
+  if (iptvSeriesList.isEmpty) return [];
+
+  final tmdbApi = ref.read(tmdbApiProvider);
+  final List<TmdbSeries> trendingTmdb = await tmdbApi.getTrendingTvShows();
+
+  final List<MatchedSeries> matched = [];
+
+  for (final tmdbSeries in trendingTmdb) {
+    if (tmdbSeries.backdropPath.isEmpty) continue;
+    final tmdbName = _cleanName(tmdbSeries.name);
+    final tmdbOriginal = _cleanName(tmdbSeries.originalName);
+
+    try {
+      final match = iptvSeriesList.firstWhere((iptvSeries) {
+        final iptvName = _cleanName(iptvSeries.name);
+        if (iptvName == tmdbName || iptvName == tmdbOriginal) return true;
+        if (iptvName.contains(tmdbName) && tmdbName.length > 5) return true;
+        return false;
+      });
+
+      // Avoid duplicates
+      if (!matched.any((m) => m.seriesId == match.seriesId)) {
+        matched.add(MatchedSeries(
+          tmdbSeries: tmdbSeries,
+          seriesId: match.seriesId,
+          cover: match.cover ?? '',
+        ));
+      }
+    } catch (_) {}
+  }
+  return matched;
+});
+
+final trendingDocumentariesProvider = FutureProvider<List<CarouselMedia>>((ref) async {
+  final iptvState = ref.watch(iptvControllerProvider);
+  final tmdbApi = ref.read(tmdbApiProvider);
+  final List<CarouselMedia> matchedDocs = [];
+
+  if (iptvState.movies.isNotEmpty) {
+    final movieDocs = await tmdbApi.getPopularMoviesByGenre(99);
+    for (final tmdbMovie in movieDocs) {
+      if (tmdbMovie.backdropPath.isEmpty) continue;
+      final tmdbName = _cleanName(tmdbMovie.title);
+      final tmdbOriginal = _cleanName(tmdbMovie.originalTitle);
+      try {
+        final match = iptvState.movies.firstWhere((m) {
+          final iptvName = _cleanName(m.name);
+          return iptvName == tmdbName || iptvName == tmdbOriginal || (iptvName.contains(tmdbName) && tmdbName.length > 5);
+        });
+        if (!matchedDocs.any((m) => m.streamId == match.streamId && m.isMovie)) {
+          matchedDocs.add(CarouselMedia(isMovie: true, tmdbData: tmdbMovie, streamId: match.streamId, coverOrIcon: match.icon ?? ''));
+        }
+      } catch (_) {}
+    }
+  }
+
+  if (iptvState.series.isNotEmpty) {
+    final seriesDocs = await tmdbApi.getPopularTvShowsByGenre(99);
+    for (final tmdbSeries in seriesDocs) {
+      if (tmdbSeries.backdropPath.isEmpty) continue;
+      final tmdbName = _cleanName(tmdbSeries.name);
+      final tmdbOriginal = _cleanName(tmdbSeries.originalName);
+      try {
+        final match = iptvState.series.firstWhere((s) {
+          final iptvName = _cleanName(s.name);
+          return iptvName == tmdbName || iptvName == tmdbOriginal || (iptvName.contains(tmdbName) && tmdbName.length > 5);
+        });
+        if (!matchedDocs.any((m) => m.streamId == match.seriesId && !m.isMovie)) {
+          matchedDocs.add(CarouselMedia(isMovie: false, tmdbData: tmdbSeries, streamId: match.seriesId, coverOrIcon: match.cover ?? ''));
+        }
+      } catch (_) {}
+    }
+  }
+
+  matchedDocs.shuffle();
+  return matchedDocs;
+});
+
+final mixedCarouselProvider = FutureProvider<List<CarouselMedia>>((ref) async {
+  final moviesAsync = await ref.watch(trendingMoviesProvider.future);
+  final seriesAsync = await ref.watch(trendingSeriesProvider.future);
+  final docsAsync = await ref.watch(trendingDocumentariesProvider.future);
+
+  final List<CarouselMedia> mixed = [];
+  
+  for (final m in moviesAsync) {
+    mixed.add(CarouselMedia(isMovie: true, tmdbData: m.tmdbMovie, streamId: m.streamId, coverOrIcon: m.streamIcon));
+  }
+
+  for (final s in seriesAsync) {
+    mixed.add(CarouselMedia(isMovie: false, tmdbData: s.tmdbSeries, streamId: s.seriesId, coverOrIcon: s.cover));
+  }
+
+  mixed.addAll(docsAsync);
+
+  mixed.shuffle();
+  return mixed.take(10).toList();
+});
+
+
+
 final sportsMatchedMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
   final iptvState = ref.watch(iptvControllerProvider);
   final iptvMovies = iptvState.movies;
@@ -379,6 +521,120 @@ final comedySeriesProvider = FutureProvider<List<MatchedSeries>>((ref) async {
 
   print('VOD Matcher: Found ${matched.length} matched comedy series!');
   return matched;
+});
+
+// Helper for Movies
+Future<List<MatchedMovie>> _matchMoviesHelper(Ref ref, Future<List<TmdbMovie>> Function(int) fetchPage) async {
+  final iptvState = ref.watch(iptvControllerProvider);
+  if (iptvState.movies.isEmpty) return [];
+  final List<TmdbMovie> allTmdbMovies = [];
+  for (int i = 1; i <= 5; i++) {
+    allTmdbMovies.addAll(await fetchPage(i));
+  }
+  final List<MatchedMovie> matched = [];
+  for (final tmdbMovie in allTmdbMovies) {
+    final tmdbName = _cleanName(tmdbMovie.title);
+    final tmdbOriginal = _cleanName(tmdbMovie.originalTitle);
+    try {
+      final match = iptvState.movies.firstWhere((iptvMovie) {
+        final iptvName = _cleanName(iptvMovie.name);
+        return iptvName == tmdbName || iptvName == tmdbOriginal || (iptvName.contains(tmdbName) && tmdbName.length > 5);
+      });
+      matched.add(MatchedMovie(tmdbMovie: tmdbMovie, streamId: match.streamId, streamIcon: match.icon ?? ''));
+    } catch (_) {}
+  }
+  return matched;
+}
+
+// Helper for Series
+Future<List<MatchedSeries>> _matchSeriesHelper(Ref ref, Future<List<TmdbSeries>> Function(int) fetchPage) async {
+  final iptvState = ref.watch(iptvControllerProvider);
+  if (iptvState.series.isEmpty) return [];
+  final List<TmdbSeries> allTmdbSeries = [];
+  for (int i = 1; i <= 5; i++) {
+    allTmdbSeries.addAll(await fetchPage(i));
+  }
+  final List<MatchedSeries> matched = [];
+  for (final tmdbSeries in allTmdbSeries) {
+    final tmdbName = _cleanName(tmdbSeries.name);
+    final tmdbOriginal = _cleanName(tmdbSeries.originalName);
+    try {
+      final match = iptvState.series.firstWhere((iptvSeries) {
+        final iptvName = _cleanName(iptvSeries.name);
+        return iptvName == tmdbName || iptvName == tmdbOriginal || (iptvName.contains(tmdbName) && tmdbName.length > 5);
+      });
+      matched.add(MatchedSeries(tmdbSeries: tmdbSeries, seriesId: match.seriesId, cover: match.cover ?? ''));
+    } catch (_) {}
+  }
+  return matched;
+}
+
+// NEW MOVIE & SERIES PROVIDERS
+final kidsMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) {
+  return _matchMoviesHelper(ref, (page) => ref.read(tmdbApiProvider).getPopularMoviesByGenre(10751, page: page));
+});
+final kidsSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) {
+  return _matchSeriesHelper(ref, (page) => ref.read(tmdbApiProvider).getPopularTvShowsByGenre(10762, page: page));
+});
+
+final scifiMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) {
+  return _matchMoviesHelper(ref, (page) => ref.read(tmdbApiProvider).getPopularMoviesByGenre(878, page: page));
+});
+final scifiSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) {
+  return _matchSeriesHelper(ref, (page) => ref.read(tmdbApiProvider).getPopularTvShowsByGenre(10765, page: page));
+});
+
+final actionMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) {
+  return _matchMoviesHelper(ref, (page) => ref.read(tmdbApiProvider).getPopularMoviesByGenre(28, page: page));
+});
+final actionSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) {
+  return _matchSeriesHelper(ref, (page) => ref.read(tmdbApiProvider).getPopularTvShowsByGenre(10759, page: page));
+});
+
+final nostalgiaMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) {
+  return _matchMoviesHelper(ref, (page) => ref.read(tmdbApiProvider).getClassicMovies(page: page));
+});
+final nostalgiaSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) {
+  return _matchSeriesHelper(ref, (page) => ref.read(tmdbApiProvider).getClassicSeries(page: page));
+});
+
+// LIVE TV PROVIDERS
+List<IptvLiveChannel> _filterLiveChannels(Ref ref, List<String> keywords) {
+  final iptvState = ref.watch(iptvControllerProvider);
+  if (iptvState.liveChannels.isEmpty) return [];
+
+  final matchedCategories = iptvState.liveCategories.where((c) {
+    final name = c.name.toLowerCase();
+    return keywords.any((kw) => name.contains(kw));
+  }).map((c) => c.id).toSet();
+
+  return iptvState.liveChannels.where((channel) {
+    if (matchedCategories.contains(channel.categoryId)) return true;
+    final chName = channel.name.toLowerCase();
+    return keywords.any((kw) => chName.contains(kw));
+  }).take(20).toList();
+}
+
+final sportsChannelsProvider = Provider<List<IptvLiveChannel>>((ref) {
+  return _filterLiveChannels(ref, ['spor', 'sport', 'bein', 'match', 'maç']);
+});
+final kidsChannelsProvider = Provider<List<IptvLiveChannel>>((ref) {
+  return _filterLiveChannels(ref, ['çocuk', 'kid', 'aile', 'cartoon', 'çizgi']);
+});
+final horrorChannelsProvider = Provider<List<IptvLiveChannel>>((ref) {
+  return _filterLiveChannels(ref, ['korku', 'horror', 'thriller', 'gerilim']);
+});
+final comedyChannelsProvider = Provider<List<IptvLiveChannel>>((ref) {
+  return _filterLiveChannels(ref, ['komedi', 'comedy', 'gülme', 'eğlence']);
+});
+final actionChannelsProvider = Provider<List<IptvLiveChannel>>((ref) {
+  return _filterLiveChannels(ref, ['aksiyon', 'action', 'macera', 'adventure', 'sinema']);
+});
+final scifiChannelsProvider = Provider<List<IptvLiveChannel>>((ref) {
+  return _filterLiveChannels(ref, ['bilim', 'sci-fi', 'uzay', 'fantastik', 'fantasy', 'sinema']);
+});
+final nostalgiaChannelsProvider = Provider<List<IptvLiveChannel>>((ref) {
+  return _filterLiveChannels(ref, ['nostalji', 'eski', 'yeşilçam', 'klasik', 'classic', 'tarih']);
 });
 
 String _cleanName(String input) {
