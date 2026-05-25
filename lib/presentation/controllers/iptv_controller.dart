@@ -31,6 +31,9 @@ class IptvState {
   // EPG Cache for Live Channels
   final Map<int, EpgProgram?> epgCache;
 
+  // Last Updated
+  final DateTime? lastUpdated;
+
   IptvState({
     required this.isLoading,
     this.errorMessage,
@@ -48,6 +51,7 @@ class IptvState {
     required this.selectedSeriesCategoryId,
     required this.searchQuery,
     required this.epgCache,
+    this.lastUpdated,
   });
 
   factory IptvState.initial() => IptvState(
@@ -67,6 +71,7 @@ class IptvState {
     selectedSeriesCategoryId: 'RECENTLY_ADDED_CUSTOM_ID',
     searchQuery: '',
     epgCache: const {},
+    lastUpdated: null,
   );
 
   IptvState copyWith({
@@ -86,6 +91,7 @@ class IptvState {
     String? selectedSeriesCategoryId,
     String? searchQuery,
     Map<int, EpgProgram?>? epgCache,
+    DateTime? lastUpdated,
   }) {
     return IptvState(
       isLoading: isLoading ?? this.isLoading,
@@ -104,6 +110,7 @@ class IptvState {
       selectedSeriesCategoryId: selectedSeriesCategoryId ?? this.selectedSeriesCategoryId,
       searchQuery: searchQuery ?? this.searchQuery,
       epgCache: epgCache ?? this.epgCache,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
     );
   }
 }
@@ -111,6 +118,9 @@ class IptvState {
 class IptvController extends Notifier<IptvState> {
   @override
   IptvState build() {
+    final storage = ref.read(localStorageProvider);
+    final initialLastUpdated = storage.getLastUpdated();
+
     // Listen to authentication changes
     ref.listen<AuthState>(authControllerProvider, (previous, next) {
       if (next.status == AuthStatus.authenticated) {
@@ -119,7 +129,8 @@ class IptvController extends Notifier<IptvState> {
         state = IptvState.initial();
       }
     });
-    return IptvState.initial();
+    
+    return IptvState.initial().copyWith(lastUpdated: initialLastUpdated);
   }
 
   // --- Load All Data ---
@@ -167,6 +178,10 @@ class IptvController extends Notifier<IptvState> {
       final favMovies = movies.where((m) => favoriteMovieIds.contains(m.streamId)).toList();
       final favSeries = series.where((s) => favoriteSeriesIds.contains(s.seriesId)).toList();
 
+      // Store last updated time
+      final now = DateTime.now();
+      await storage.saveLastUpdated(now);
+
       state = state.copyWith(
         isLoading: false,
         liveCategories: liveCats,
@@ -181,6 +196,7 @@ class IptvController extends Notifier<IptvState> {
         selectedLiveCategoryId: '',
         selectedMovieCategoryId: 'RECENTLY_ADDED_CUSTOM_ID',
         selectedSeriesCategoryId: 'RECENTLY_ADDED_CUSTOM_ID',
+        lastUpdated: now,
       );
     } catch (e, stack) {
       print('IPTV Controller Error: loadAllContent exception: $e');
@@ -247,6 +263,54 @@ class IptvController extends Notifier<IptvState> {
     
     final api = ref.read(iptvApiProvider);
     return await api.getSeriesEpisodes(creds, seriesId);
+  }
+
+  // ================= EPG & Archive =================
+  Future<List<EpgProgram>> getEpgForChannel(int streamId) async {
+    final creds = ref.read(authControllerProvider).credentials;
+    if (creds == null) return [];
+    final api = ref.read(iptvApiProvider);
+    return await api.getShortEpg(creds, streamId);
+  }
+
+  Future<List<EpgProgram>> getTvArchive(int streamId) async {
+    print('DEBUG: IptvController.getTvArchive called for streamId: $streamId');
+    final creds = ref.read(authControllerProvider).credentials;
+    if (creds == null) {
+      print('DEBUG: IptvController.getTvArchive - creds is null');
+      return [];
+    }
+    print('DEBUG: IptvController.getTvArchive - calling api.getTvArchive');
+    final api = ref.read(iptvApiProvider);
+    return await api.getTvArchive(creds, streamId);
+  }
+
+  Future<EpgProgram?> getCurrentEpgForChannel(int streamId) async {
+    final creds = ref.read(authControllerProvider).credentials;
+    if (creds == null) return null;
+    final api = ref.read(iptvApiProvider);
+    try {
+      final list = await api.getShortEpg(creds, streamId);
+      if (list.isNotEmpty) return list.first;
+    } catch (e) {
+      print('getShortEpg error: $e');
+    }
+    return null;
+  }
+
+  // ================= UTILS =================
+  String getPlaybackUrl(String type, int streamId) {
+    final creds = ref.read(authControllerProvider).credentials;
+    if (creds == null) return '';
+    final api = ref.read(iptvApiProvider);
+    return api.buildStreamUrl(creds, type, streamId);
+  }
+
+  String getTimeshiftPlaybackUrl(int streamId, DateTime start, int durationMinutes) {
+    final creds = ref.read(authControllerProvider).credentials;
+    if (creds == null) return '';
+    final api = ref.read(iptvApiProvider);
+    return api.buildTimeshiftUrl(creds, streamId, start, durationMinutes);
   }
 
   // --- EPG Fetcher (on Demand) ---

@@ -5,6 +5,7 @@ import '../controllers/auth_controller.dart';
 import '../controllers/language_provider.dart';
 import '../controllers/providers.dart';
 import '../widgets/glass_container.dart';
+import '../controllers/iptv_controller.dart';
 import 'login_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -126,6 +127,169 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  void _showServiceInfoModal(BuildContext context) {
+    final authState = ref.read(authControllerProvider);
+    final creds = authState.credentials;
+    if (creds == null) return;
+    
+    final state = ref.read(iptvControllerProvider);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.65,
+          maxChildSize: 0.9,
+          minChildSize: 0.5,
+          expand: false,
+          builder: (context, scrollController) {
+            return FutureBuilder<Map<String, dynamic>?>(
+              future: ref.read(iptvApiProvider).getAccountInfo(creds),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40.0),
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    ),
+                  );
+                }
+
+                final data = snapshot.data;
+                final userInfo = data?['user_info'] as Map<String, dynamic>?;
+                final serverInfo = data?['server_info'] as Map<String, dynamic>?;
+
+                // Format expiration date cleanly
+                String expDateText = 'Bilinmiyor';
+                if (userInfo != null) {
+                  final expRaw = userInfo['exp_date'];
+                  if (expRaw == null || expRaw == '0' || expRaw.toString() == 'null' || expRaw.toString().isEmpty) {
+                    expDateText = ref.tr('info_unlimited');
+                  } else {
+                    final seconds = int.tryParse(expRaw.toString());
+                    if (seconds != null) {
+                      final dt = DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+                      expDateText = '${dt.day}.${dt.month}.${dt.year}';
+                    }
+                  }
+                }
+
+                final activeCons = userInfo?['active_cons']?.toString() ?? '0';
+                final maxConnections = userInfo?['max_connections']?.toString() ?? '1';
+                final unknownText = ref.tr('info_unknown');
+
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          const Icon(Icons.dns_rounded, color: AppColors.primary, size: 24),
+                          const SizedBox(width: 12),
+                          Text(
+                            ref.tr('info_title'),
+                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const Divider(color: AppColors.borderDark, height: 32),
+
+                      Text(
+                        ref.tr('info_sub_details'),
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      GlassContainer(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _buildInfoRow(ref.tr('info_status'), ref.tr('dashboard_active')),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(ref.tr('info_exp_date'), expDateText),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(ref.tr('info_active_connections'), '$activeCons / $maxConnections'),
+                            if (userInfo?['is_trial']?.toString() == '1') ...[
+                              const SizedBox(height: 12),
+                              _buildInfoRow(ref.tr('info_account_type'), ref.tr('info_trial')),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      Text(
+                        ref.tr('info_server_details'),
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      GlassContainer(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _buildInfoRow(ref.tr('info_server_url'), serverInfo?['url'] ?? creds.serverUrl),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(ref.tr('info_timezone'), serverInfo?['timezone'] ?? unknownText),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(ref.tr('info_server_time'), serverInfo?['time_now'] ?? unknownText),
+                            if (userInfo?['allowed_outputs'] is List) ...[
+                              const SizedBox(height: 12),
+                              _buildInfoRow(
+                                ref.tr('info_allowed_formats'),
+                                (userInfo!['allowed_outputs'] as List).join(', ').toUpperCase(),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      Text(
+                        ref.tr('info_content_stats'),
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      GlassContainer(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _buildInfoRow(ref.tr('info_live_channels'), state.liveChannels.length.toString()),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(ref.tr('info_movies'), state.movies.length.toString()),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(ref.tr('info_series'), state.series.length.toString()),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
@@ -179,6 +343,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       _buildInfoRow(ref.tr('settings_server'), serverUrl),
                       const SizedBox(height: 12),
                       _buildInfoRow(ref.tr('settings_username'), username),
+                      const Divider(color: AppColors.borderDark, height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => _showServiceInfoModal(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary.withOpacity(0.15),
+                            foregroundColor: AppColors.primary,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.info_outline_rounded, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                ref.tr('info_title'),
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

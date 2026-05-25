@@ -59,6 +59,8 @@ class IptvLiveChannel {
   final String categoryId;
   final String? epgChannelId;
   final int num;
+  final bool hasTvArchive;
+  final int tvArchiveDuration;
 
   IptvLiveChannel({
     required this.streamId,
@@ -67,6 +69,8 @@ class IptvLiveChannel {
     required this.categoryId,
     this.epgChannelId,
     required this.num,
+    this.hasTvArchive = false,
+    this.tvArchiveDuration = 0,
   });
 
   factory IptvLiveChannel.fromJson(Map<String, dynamic> json) => IptvLiveChannel(
@@ -76,6 +80,10 @@ class IptvLiveChannel {
     categoryId: (json['category_id'] ?? '').toString(),
     epgChannelId: json['epg_channel_id']?.toString(),
     num: json['num'] is int ? json['num'] : int.tryParse(json['num']?.toString() ?? '0') ?? 0,
+    hasTvArchive: json['tv_archive'] == 1 || json['tv_archive'] == '1',
+    tvArchiveDuration: json['tv_archive_duration'] is int 
+        ? json['tv_archive_duration'] 
+        : int.tryParse(json['tv_archive_duration']?.toString() ?? '0') ?? 0,
   );
 
   String get displayName {
@@ -145,6 +153,8 @@ class IptvLiveChannel {
     'category_id': categoryId,
     'epg_channel_id': epgChannelId,
     'num': num,
+    'tv_archive': hasTvArchive ? 1 : 0,
+    'tv_archive_duration': tvArchiveDuration,
   };
 }
 
@@ -306,12 +316,14 @@ class EpgProgram {
   final DateTime start;
   final DateTime end;
   final String? description;
+  final int hasArchive;
 
   EpgProgram({
     required this.title,
     required this.start,
     required this.end,
     this.description,
+    this.hasArchive = 0,
   });
 
   factory EpgProgram.fromJson(Map<String, dynamic> json) {
@@ -334,6 +346,7 @@ class EpgProgram {
       start: parseTime(json['start']),
       end: parseTime(json['end']),
       description: json['description'],
+      hasArchive: json['has_archive'] is int ? json['has_archive'] : int.tryParse(json['has_archive']?.toString() ?? '0') ?? 0,
     );
   }
 

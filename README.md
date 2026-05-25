@@ -1,6 +1,6 @@
-# Lokum Player 🍬📺
+# Lokum Media Center 🍬📺
 
-Lokum Player is a modern, premium, and fast IPTV player built with Flutter. It aims to provide a seamless and visually stunning experience for watching Live TV, Movies, and Series.
+Lokum Media Center is a modern, premium, and fast IPTV player built with Flutter. It aims to provide a seamless and visually stunning experience for watching Live TV, Movies, and Series.
 
 ## Features
 

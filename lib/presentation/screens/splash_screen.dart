@@ -95,7 +95,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
               const SizedBox(height: 40),
               // App Title
               Text(
-                'LOKUM PLAYER',
+                'LOKUM MEDIA CENTER',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontSize: 28,
                   letterSpacing: 4,

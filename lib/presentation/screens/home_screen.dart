@@ -16,6 +16,8 @@ import 'login_screen.dart';
 import '../controllers/language_provider.dart';
 import 'settings_screen.dart';
 import 'favorites_screen.dart';
+import 'sports_dashboard_screen.dart';
+import 'horror_room_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -89,177 +91,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _showServiceInfoModal(BuildContext context, IptvState state) {
-    final authState = ref.read(authControllerProvider);
-    final creds = authState.credentials;
-    if (creds == null) return;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (ctx) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.65,
-          maxChildSize: 0.9,
-          minChildSize: 0.5,
-          expand: false,
-          builder: (context, scrollController) {
-            return FutureBuilder<Map<String, dynamic>?>(
-              future: ref.read(iptvApiProvider).getAccountInfo(creds),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40.0),
-                      child: CircularProgressIndicator(color: AppColors.primary),
-                    ),
-                  );
-                }
-
-                final data = snapshot.data;
-                final userInfo = data?['user_info'] as Map<String, dynamic>?;
-                final serverInfo = data?['server_info'] as Map<String, dynamic>?;
-
-                // Format expiration date cleanly
-                String expDateText = 'Bilinmiyor';
-                if (userInfo != null) {
-                  final expRaw = userInfo['exp_date'];
-                  if (expRaw == null || expRaw == '0' || expRaw.toString() == 'null' || expRaw.toString().isEmpty) {
-                    expDateText = ref.tr('info_unlimited');
-                  } else {
-                    final seconds = int.tryParse(expRaw.toString());
-                    if (seconds != null) {
-                      final dt = DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
-                      expDateText = '${dt.day}.${dt.month}.${dt.year}';
-                    }
-                  }
-                }
-
-                // Active connections count
-                final activeCons = userInfo?['active_cons']?.toString() ?? '0';
-                final maxConnections = userInfo?['max_connections']?.toString() ?? '1';
-                final String unknownText = ref.tr('info_unknown');
-
-                return SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Handle bar for drag
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Modal Title
-                      Row(
-                        children: [
-                          const Icon(Icons.dns_rounded, color: AppColors.primary, size: 24),
-                          const SizedBox(width: 12),
-                          Text(
-                            ref.tr('info_title'),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Divider(color: AppColors.borderDark, height: 32),
-
-                      // Subscription Glassmorphic Card
-                      Text(
-                        ref.tr('info_sub_details'),
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      GlassContainer(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            _buildModalInfoRow(ref.tr('info_status'), ref.tr('dashboard_active'), isStatus: true),
-                            const SizedBox(height: 12),
-                            _buildModalInfoRow(ref.tr('info_exp_date'), expDateText),
-                            const SizedBox(height: 12),
-                            _buildModalInfoRow(ref.tr('info_active_connections'), '$activeCons / $maxConnections'),
-                            if (userInfo?['is_trial']?.toString() == '1') ...[
-                              const SizedBox(height: 12),
-                              _buildModalInfoRow(ref.tr('info_account_type'), ref.tr('info_trial')),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Server Glassmorphic Card
-                      Text(
-                        ref.tr('info_server_details'),
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      GlassContainer(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            _buildModalInfoRow(ref.tr('info_server_url'), serverInfo?['url'] ?? creds.serverUrl),
-                            const SizedBox(height: 12),
-                            _buildModalInfoRow(ref.tr('info_timezone'), serverInfo?['timezone'] ?? unknownText),
-                            const SizedBox(height: 12),
-                            _buildModalInfoRow(ref.tr('info_server_time'), serverInfo?['time_now'] ?? unknownText),
-                            if (userInfo?['allowed_outputs'] is List) ...[
-                              const SizedBox(height: 12),
-                              _buildModalInfoRow(
-                                ref.tr('info_allowed_formats'),
-                                (userInfo!['allowed_outputs'] as List).join(', ').toUpperCase(),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Stream Content Counts (Shifted from main screen)
-                      Text(
-                        ref.tr('info_content_stats'),
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      GlassContainer(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            _buildModalInfoRow(ref.tr('info_live_channels'), state.liveChannels.length.toString(), showDot: true, dotColor: AppColors.primary),
-                            const SizedBox(height: 12),
-                            _buildModalInfoRow(ref.tr('info_movies'), state.movies.length.toString(), showDot: true, dotColor: AppColors.secondary),
-                            const SizedBox(height: 12),
-                            _buildModalInfoRow(ref.tr('info_series'), state.series.length.toString(), showDot: true, dotColor: AppColors.accent),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
 
   @override
   void dispose() {
@@ -306,10 +138,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 borderRadius: 16,
                 blur: 20,
                 color: AppColors.surface.withOpacity(0.55),
-                height: 62,
+                height: 68, // slightly taller for elegant padding
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     _buildNavItem(0, Icons.dashboard_outlined, Icons.dashboard_rounded, ref.tr('tab_dashboard')),
                     _buildNavItem(1, Icons.tv_outlined, Icons.tv_rounded, ref.tr('tab_live')),
@@ -339,78 +171,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     };
     final activeColor = tabColors[index] ?? AppColors.primary;
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-          decoration: isSelected
-              ? BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      activeColor.withOpacity(0.12),
-                      activeColor.withOpacity(0.04),
-                    ],
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _currentIndex = index;
+        });
+      },
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutQuint,
+        padding: EdgeInsets.symmetric(horizontal: isSelected ? 16 : 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isSelected ? activeColor.withOpacity(0.4) : Colors.transparent,
+            width: 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: activeColor.withOpacity(0.1),
+                    blurRadius: 12,
+                    spreadRadius: 2,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: activeColor.withOpacity(0.15),
-                      blurRadius: 12,
-                      spreadRadius: -2,
-                    ),
-                  ],
-                  border: Border(
-                    left: index > 0
-                        ? BorderSide(
-                            color: activeColor.withOpacity(0.4),
-                            width: 1.5,
-                          )
-                        : BorderSide.none,
-                    right: index < 4
-                        ? BorderSide(
-                            color: activeColor.withOpacity(0.4),
-                            width: 1.5,
-                          )
-                        : BorderSide.none,
-                  ),
-                )
-              : const BoxDecoration(),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+                ]
+              : [],
+        ),
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutQuint,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Center(
-                child: Icon(
-                  isSelected ? filledIcon : outlineIcon,
-                  color: isSelected ? activeColor : AppColors.textSecondary,
-                  size: 22,
-                ),
+              Icon(
+                isSelected ? filledIcon : outlineIcon,
+                color: isSelected ? activeColor : AppColors.textSecondary,
+                size: 24,
               ),
-              const SizedBox(height: 3),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.center,
-                child: Text(
+              if (isSelected) ...[
+                const SizedBox(width: 8),
+                Text(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
-                    fontSize: 10.5,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: activeColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -478,149 +288,162 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final recommendations = _getRecommendations(state);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 60, bottom: 100),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top Welcome Section
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    ref.tr('dashboard_welcome'),
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+    String getRelativeTime(DateTime? time) {
+      if (time == null) return ref.tr('last_updated_never');
+      final diff = DateTime.now().difference(time);
+      if (diff.inMinutes < 1) return ref.tr('last_updated_just_now');
+      if (diff.inHours < 1) return '${diff.inMinutes} ${ref.tr('last_updated_mins_ago')}';
+      if (diff.inDays < 1) return '${diff.inHours} ${ref.tr('last_updated_hours_ago')}';
+      return '${diff.inDays} ${ref.tr('last_updated_days_ago')}';
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(iptvControllerProvider.notifier).loadAllContent();
+      },
+      color: AppColors.primary,
+      backgroundColor: AppColors.surfaceLight,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(left: 20, right: 20, top: 60, bottom: 100),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'LOKUM MC',
+                        style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${ref.tr('last_updated_prefix')}${getRelativeTime(state.lastUpdated)}',
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Lokum Player',
-                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-               Row(
-                children: [
-                  // Refresh All / Tümünü Güncelle Button
-                  GestureDetector(
-                    onTap: () async {
-                      try {
-                        await ref.read(iptvControllerProvider.notifier).loadAllContent();
-                        
-                        // Show premium success snackbar
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Row(
-                                children: [
-                                  const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      ref.tr('update_success'),
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Refresh All / Tümünü Güncelle Button
+                    GestureDetector(
+                      onTap: () async {
+                        try {
+                          await ref.read(iptvControllerProvider.notifier).loadAllContent();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        ref.tr('update_success'),
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                                backgroundColor: AppColors.surfaceLight.withOpacity(0.9),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                duration: const Duration(seconds: 2),
                               ),
-                              backgroundColor: AppColors.surfaceLight.withOpacity(0.9),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        // Show error snackbar
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Row(
-                                children: [
-                                  const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      ref.tr('update_error'),
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        ref.tr('update_error'),
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                                backgroundColor: AppColors.surfaceLight.withOpacity(0.9),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                duration: const Duration(seconds: 3),
                               ),
-                              backgroundColor: AppColors.surfaceLight.withOpacity(0.9),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              duration: const Duration(seconds: 3),
-                            ),
-                          );
+                            );
+                          }
                         }
-                      }
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(0.12)),
-                      ),
-                      child: const Icon(
-                        Icons.refresh_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Service Info Modal Trigger
-                  GestureDetector(
-                    onTap: () => _showServiceInfoModal(context, state),
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(0.12)),
-                      ),
-                      child: const Icon(
-                        Icons.info_outline_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // App Settings Screen Router
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SettingsScreen(),
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withOpacity(0.12)),
                         ),
-                      );
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(0.12)),
-                      ),
-                      child: const Icon(
-                        Icons.settings_rounded,
-                        color: Colors.white,
-                        size: 20,
+                        child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                    const SizedBox(width: 8),
+                    // Search Placeholder Button
+                    GestureDetector(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(ref.tr('search_coming_soon'))),
+                        );
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withOpacity(0.12)),
+                        ),
+                        child: const Icon(Icons.search_rounded, color: Colors.white, size: 20),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // App Settings Screen Router
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        );
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withOpacity(0.12)),
+                        ),
+                        child: const Icon(Icons.settings_rounded, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           const SizedBox(height: 24),
 
           // Featured Media Banner Carousel
@@ -767,9 +590,129 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(height: 28),
           ],
+          // Sports Center Banner
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SportsDashboardScreen()),
+              );
+            },
+            child: Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 100),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  colors: [Colors.black, AppColors.success.withOpacity(0.8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20,
+                    bottom: -20,
+                    child: Icon(Icons.sports_soccer_rounded, size: 100, color: Colors.white.withOpacity(0.05)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+                          child: const Icon(Icons.sports_soccer_rounded, color: AppColors.success, size: 28),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                ref.tr('home_sports_center'),
+                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                ref.tr('home_sports_desc'),
+                                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
 
-
-
+          // Horror Room Banner
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const HorrorRoomScreen()),
+              );
+            },
+            child: Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 100),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  colors: [Colors.black, Colors.red.shade900],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20,
+                    bottom: -20,
+                    child: Icon(Icons.warning_amber_rounded, size: 100, color: Colors.white.withOpacity(0.05)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+                          child: const Icon(Icons.local_fire_department_rounded, color: Colors.redAccent, size: 28),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                ref.tr('home_horror_room'),
+                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                ref.tr('home_horror_desc'),
+                                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
           // Watch History ("Son İzlenenler")
           if (history.isNotEmpty) ...[
             Text(
@@ -856,104 +799,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildModalInfoRow(
-    String label,
-    String value, {
-    bool isStatus = false,
-    bool showDot = false,
-    Color? dotColor,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Flexible(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (showDot) ...[
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: dotColor ?? AppColors.primary,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: (dotColor ?? AppColors.primary).withOpacity(0.5),
-                        blurRadius: 6,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-              ],
-              Flexible(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        if (isStatus)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.success.withOpacity(0.3), width: 1),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: AppColors.success,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: AppColors.success,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ),
-      ],
-    );
-  }
+
 
 }

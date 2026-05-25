@@ -17,6 +17,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
   final String mediaName;
   final String mediaType; // 'live', 'movie', 'series'
   final String? episodeExtension; // for movies / episodes (.mp4, .mkv, etc.)
+  final String? streamUrlOverride;
 
   const PlayerScreen({
     super.key,
@@ -24,6 +25,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
     required this.mediaName,
     required this.mediaType,
     this.episodeExtension,
+    this.streamUrlOverride,
   });
 
   @override
@@ -138,7 +140,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     // Formulate play URL
     final ext = widget.episodeExtension ?? 'mp4';
-    final streamUrl = api.buildStreamUrl(creds, widget.mediaType, _currentMediaId, ext);
+    final streamUrl = widget.streamUrlOverride ?? api.buildStreamUrl(creds, widget.mediaType, _currentMediaId, ext);
 
     // Save to Watch History
     ref.read(iptvControllerProvider.notifier).saveToWatchHistory(

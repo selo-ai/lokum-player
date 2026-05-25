@@ -11,6 +11,7 @@ class LocalStorage {
   static const String _keyLanguage = 'app_language';
   static const String _keyEpgEnabled = 'epg_enabled';
   static const String _keyRecentCount = 'recent_items_count';
+  static const String _keyLastUpdated = 'last_updated';
 
   late Box _box;
 
@@ -18,6 +19,19 @@ class LocalStorage {
     await Hive.initFlutter();
     _box = await Hive.openBox(_boxName);
   }
+
+  // --- Last Updated ---
+  Future<void> saveLastUpdated(DateTime time) async {
+    await _box.put(_keyLastUpdated, time.millisecondsSinceEpoch);
+  }
+
+  DateTime? getLastUpdated() {
+    final raw = _box.get(_keyLastUpdated);
+    if (raw == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(raw);
+  }
+
+
 
   // --- Credentials ---
   Future<void> saveCredentials(IptvCredentials creds) async {

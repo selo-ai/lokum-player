@@ -1,0 +1,267 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/constants/colors.dart';
+import '../../data/models/tmdb_models.dart';
+import '../controllers/vod_matcher_provider.dart';
+import '../controllers/language_provider.dart';
+import 'player_screen.dart';
+
+class HorrorRoomScreen extends ConsumerWidget {
+  const HorrorRoomScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      backgroundColor: Colors.black, // Dark theme for horror
+      body: Stack(
+        children: [
+          // Background Gradient (Dark Red/Black)
+          Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.topCenter,
+                radius: 1.5,
+                colors: [
+                  Colors.red.withOpacity(0.3),
+                  Colors.black,
+                  Colors.black,
+                ],
+              ),
+            ),
+          ),
+          
+          CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                pinned: true,
+                centerTitle: true,
+                title: Text(
+                  ref.tr('home_horror_room'),
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2.0,
+                    shadows: [Shadow(color: Colors.red, blurRadius: 10)],
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 20, bottom: 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle(ref.tr('horror_movies'), Icons.movie_creation_rounded),
+                      ref.watch(horrorMoviesProvider).when(
+                        data: (matchedMovies) => _buildMatchedMovieRow(matchedMovies, context, ref),
+                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.redAccent))),
+                        error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
+                      ),
+
+                      const SizedBox(height: 40),
+                      
+                      _buildSectionTitle(ref.tr('horror_series'), Icons.live_tv_rounded),
+                      ref.watch(horrorSeriesProvider).when(
+                        data: (matchedSeries) => _buildMatchedSeriesRow(matchedSeries, context, ref),
+                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.redAccent))),
+                        error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.redAccent, size: 24),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMatchedMovieRow(List<MatchedMovie> items, BuildContext context, WidgetRef ref) {
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('horror_not_found_movies'), style: const TextStyle(color: AppColors.textSecondary)),
+      );
+    }
+
+    return SizedBox(
+      height: 220,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final matched = items[index];
+          final tmdb = matched.tmdbMovie;
+
+          return _buildPosterCard(
+            context: context,
+            title: tmdb.title,
+            posterUrl: tmdb.posterUrl,
+            voteAverage: tmdb.voteAverage,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PlayerScreen(
+                    mediaId: matched.streamId,
+                    mediaName: tmdb.title,
+                    mediaType: 'movie',
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMatchedSeriesRow(List<MatchedSeries> items, BuildContext context, WidgetRef ref) {
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('horror_not_found_series'), style: const TextStyle(color: AppColors.textSecondary)),
+      );
+    }
+
+    return SizedBox(
+      height: 220,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final matched = items[index];
+          final tmdb = matched.tmdbSeries;
+
+          return _buildPosterCard(
+            context: context,
+            title: tmdb.name,
+            posterUrl: tmdb.posterUrl,
+            voteAverage: tmdb.voteAverage,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PlayerScreen(
+                    mediaId: matched.seriesId,
+                    mediaName: tmdb.name,
+                    mediaType: 'series',
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPosterCard({
+    required BuildContext context,
+    required String title,
+    required String posterUrl,
+    required double voteAverage,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              posterUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: posterUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(color: Colors.black26),
+                    )
+                  : Container(color: Colors.black26),
+              
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [Colors.black.withOpacity(0.9), Colors.transparent],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.star_rounded, color: AppColors.warning, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            voteAverage.toStringAsFixed(1),
+                            style: const TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

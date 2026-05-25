@@ -68,6 +68,23 @@ class IptvApi {
     return '';
   }
 
+  // Generates timeshift/archive stream URL
+  String buildTimeshiftUrl(IptvCredentials creds, int streamId, DateTime start, int durationMinutes, [String extension = 'ts']) {
+    var baseUrl = creds.serverUrl;
+    if (!baseUrl.endsWith('/')) {
+      baseUrl += '/';
+    }
+    // Format start time as YYYY-MM-DD:HH-MM
+    final yyyy = start.year.toString().padLeft(4, '0');
+    final mm = start.month.toString().padLeft(2, '0');
+    final dd = start.day.toString().padLeft(2, '0');
+    final hh = start.hour.toString().padLeft(2, '0');
+    final min = start.minute.toString().padLeft(2, '0');
+    final startTimeStr = '$yyyy-$mm-$dd:$hh-$min';
+    
+    return '${baseUrl}timeshift/${creds.username}/${creds.password}/$durationMinutes/$startTimeStr/$streamId.$extension';
+  }
+
   // --- Auth & Login ---
   Future<IptvCredentials?> authenticate(IptvCredentials creds) async {
     final apiUrl = _buildApiUrl(creds);
@@ -377,6 +394,42 @@ class IptvApi {
       return [];
     } catch (e, stack) {
       print('IPTV API: getShortEpg Exception: $e');
+      print(stack);
+      return [];
+    }
+  }
+
+  // --- TV Archive (Catch-up) ---
+  Future<List<EpgProgram>> getTvArchive(IptvCredentials creds, int streamId) async {
+    try {
+      print('IPTV API: Requesting TV Archive for stream_id $streamId...');
+      final response = await _dio.get(
+        _buildApiUrl(creds),
+        queryParameters: {
+          'username': creds.username,
+          'password': creds.password,
+          'action': 'get_simple_data_table',
+          'stream_id': streamId.toString(),
+        },
+      );
+
+      print('IPTV API: getTvArchive Response status: ${response.statusCode}, data type: ${response.data.runtimeType}');
+      if (response.statusCode == 200) {
+        if (response.data is Map) {
+          final data = response.data as Map;
+          final listings = data['epg_listings'];
+          if (listings is List) {
+            final programs = listings.map((json) => EpgProgram.fromJson(json)).toList();
+            // Filter programs to only include ones that actually have archive data
+            final archivePrograms = programs.where((p) => p.hasArchive == 1).toList();
+            print('IPTV API: Parsed ${archivePrograms.length} archived programs.');
+            return archivePrograms;
+          }
+        }
+      }
+      return [];
+    } catch (e, stack) {
+      print('IPTV API: getTvArchive Exception: $e');
       print(stack);
       return [];
     }
