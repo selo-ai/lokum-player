@@ -18,6 +18,8 @@ import 'settings_screen.dart';
 import 'favorites_screen.dart';
 import 'sports_dashboard_screen.dart';
 import 'horror_room_screen.dart';
+import 'laughing_gas_screen.dart';
+import 'ai_assistant_sheet.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -28,6 +30,18 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
+  Offset _aiButtonOffset = const Offset(300, 600); // Default position (bottom right)
+  bool _isAiButtonInitialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isAiButtonInitialized) {
+      final size = MediaQuery.of(context).size;
+      _aiButtonOffset = Offset(size.width - 80, size.height - 150);
+      _isAiButtonInitialized = true;
+    }
+  }
   final TextEditingController _searchController = TextEditingController();
   
   final PageController _bannerController = PageController();
@@ -153,8 +167,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
+          
+          // Draggable AI Assistant Button
+          Positioned(
+            left: _aiButtonOffset.dx,
+            top: _aiButtonOffset.dy,
+            child: Draggable(
+              feedback: _buildAiButton(isDragging: true),
+              childWhenDragging: const SizedBox.shrink(),
+              onDragEnd: (details) {
+                setState(() {
+                  // Keep it within screen bounds
+                  final size = MediaQuery.of(context).size;
+                  double dx = details.offset.dx;
+                  double dy = details.offset.dy - 50; // account for touch point
+                  
+                  if (dx < 0) dx = 0;
+                  if (dx > size.width - 60) dx = size.width - 60;
+                  if (dy < 0) dy = 0;
+                  if (dy > size.height - 100) dy = size.height - 100;
+                  
+                  _aiButtonOffset = Offset(dx, dy);
+                });
+              },
+              child: _buildAiButton(isDragging: false),
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAiButton({required bool isDragging}) {
+    return GestureDetector(
+      onTap: () {
+        if (!isDragging) {
+          _showAiModal(context, ref);
+        }
+      },
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Colors.purpleAccent, Colors.blueAccent],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.purpleAccent.withValues(alpha: 0.5),
+              blurRadius: 15,
+              spreadRadius: isDragging ? 5 : 2,
+            ),
+          ],
+        ),
+        child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 30),
+      ),
+    );
+  }
+
+  void _showAiModal(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const AiAssistantSheet(),
     );
   }
 
@@ -700,6 +779,68 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               Text(
                                 ref.tr('home_horror_desc'),
                                 style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Laughing Gas Banner
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const LaughingGasScreen()),
+              );
+            },
+            child: Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 100),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  colors: [Colors.black, Colors.amber.shade900],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20,
+                    bottom: -20,
+                    child: Icon(Icons.theater_comedy_rounded, size: 100, color: Colors.white.withValues(alpha: 0.05)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), shape: BoxShape.circle),
+                          child: const Icon(Icons.emoji_emotions_rounded, color: Colors.amberAccent, size: 28),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                'GÜLME GAZI',
+                                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Komedi filmleri ve dizileri',
+                                style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
                               ),
                             ],
                           ),

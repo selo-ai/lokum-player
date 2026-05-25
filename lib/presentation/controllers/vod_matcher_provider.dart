@@ -298,6 +298,89 @@ final horrorSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) async {
   return matched;
 });
 
+final comedyMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
+  final iptvState = ref.watch(iptvControllerProvider);
+  final iptvMovies = iptvState.movies;
+
+  if (iptvMovies.isEmpty) return [];
+
+  print('VOD Matcher: Starting TMDB match process for Comedy Movies.');
+
+  final tmdbApi = ref.read(tmdbApiProvider);
+  // Genre 35 is Comedy
+  print('VOD Matcher: Fetching popular comedy movies from TMDB...');
+  final List<TmdbMovie> allTmdbMovies = [];
+  for (int i = 1; i <= 5; i++) {
+    allTmdbMovies.addAll(await tmdbApi.getPopularMoviesByGenre(35, page: i));
+  }
+
+  final List<MatchedMovie> matched = [];
+
+  for (final tmdbMovie in allTmdbMovies) {
+    final tmdbName = _cleanName(tmdbMovie.title);
+    final tmdbOriginal = _cleanName(tmdbMovie.originalTitle);
+
+    try {
+      final match = iptvMovies.firstWhere((iptvMovie) {
+        final iptvName = _cleanName(iptvMovie.name);
+        if (iptvName == tmdbName || iptvName == tmdbOriginal) return true;
+        if (iptvName.contains(tmdbName) && tmdbName.length > 5) return true;
+        return false;
+      });
+
+      matched.add(MatchedMovie(
+        tmdbMovie: tmdbMovie,
+        streamId: match.streamId,
+        streamIcon: match.icon ?? '',
+      ));
+    } catch (_) {}
+  }
+
+  print('VOD Matcher: Found ${matched.length} matched comedy movies!');
+  return matched;
+});
+
+final comedySeriesProvider = FutureProvider<List<MatchedSeries>>((ref) async {
+  final iptvState = ref.watch(iptvControllerProvider);
+  final iptvSeriesList = iptvState.series;
+
+  if (iptvSeriesList.isEmpty) return [];
+
+  print('VOD Matcher: Starting TMDB match process for Comedy Series.');
+
+  final tmdbApi = ref.read(tmdbApiProvider);
+  print('VOD Matcher: Fetching popular comedy series from TMDB...');
+  final List<TmdbSeries> allTmdbSeries = [];
+  for (int i = 1; i <= 5; i++) {
+    allTmdbSeries.addAll(await tmdbApi.getPopularTvShowsByGenre(35, page: i));
+  }
+
+  final List<MatchedSeries> matched = [];
+
+  for (final tmdbSeries in allTmdbSeries) {
+    final tmdbName = _cleanName(tmdbSeries.name);
+    final tmdbOriginal = _cleanName(tmdbSeries.originalName);
+
+    try {
+      final match = iptvSeriesList.firstWhere((iptvSeries) {
+        final iptvName = _cleanName(iptvSeries.name);
+        if (iptvName == tmdbName || iptvName == tmdbOriginal) return true;
+        if (iptvName.contains(tmdbName) && tmdbName.length > 5) return true;
+        return false;
+      });
+
+      matched.add(MatchedSeries(
+        tmdbSeries: tmdbSeries,
+        seriesId: match.seriesId,
+        cover: match.cover ?? '',
+      ));
+    } catch (_) {}
+  }
+
+  print('VOD Matcher: Found ${matched.length} matched comedy series!');
+  return matched;
+});
+
 String _cleanName(String input) {
   // Remove years, resolutions, audio tags, TR DUBLAJ, etc.
   String name = input.toLowerCase();

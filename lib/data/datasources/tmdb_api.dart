@@ -35,6 +35,30 @@ class TmdbApi {
     }
   }
 
+  Future<List<TmdbSeries>> getPopularTvShowsByGenre(int genreId, {int page = 1}) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/discover/tv',
+        queryParameters: {
+          'api_key': _apiKey,
+          'language': 'tr-TR',
+          'with_genres': genreId,
+          'sort_by': 'popularity.desc',
+          'page': page,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List results = response.data['results'] ?? [];
+        return results.map((json) => TmdbSeries.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('TMDB API Error (getPopularTvShowsByGenre): $e');
+      return [];
+    }
+  }
+
   Future<List<TmdbMovie>> getTrendingMovies({int page = 1}) async {
     try {
       final response = await _dio.get(
