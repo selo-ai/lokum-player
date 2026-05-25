@@ -153,7 +153,7 @@ class _MovieDetailSheet extends ConsumerWidget {
                       },
                       icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
                       label: Text(
-                        ref.tr('player_play') == 'player_play' ? 'Hemen İzle' : ref.tr('player_play'),
+                        ref.tr('player_play_now'),
                         style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -166,12 +166,12 @@ class _MovieDetailSheet extends ConsumerWidget {
                   
                   // Description
                   Text(
-                    'Özet',
+                    ref.tr('movie_summary'),
                     style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    (description != null && description!.isNotEmpty) ? description! : 'Bu film için açıklama bulunmamaktadır.',
+                    (description != null && description!.isNotEmpty) ? description! : ref.tr('movie_no_desc'),
                     style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5),
                   ),
                   const SizedBox(height: 40),

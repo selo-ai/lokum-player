@@ -6,6 +6,7 @@ import '../../data/models/tmdb_models.dart';
 import '../widgets/movie_detail_sheet.dart';
 import '../../data/models/iptv_models.dart';
 import '../controllers/vod_matcher_provider.dart';
+import '../controllers/language_provider.dart';
 import 'player_screen.dart';
 
 class ActionRoomScreen extends ConsumerWidget {
@@ -39,9 +40,9 @@ class ActionRoomScreen extends ConsumerWidget {
                 elevation: 0,
                 pinned: true,
                 centerTitle: true,
-                title: const Text(
-                  'ADRENALİN BOOM',
-                  style: TextStyle(
+                title: Text(
+                  ref.tr('home_action_room'),
+                  style: const TextStyle(
                     color: Colors.redAccent,
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
@@ -61,12 +62,12 @@ class ActionRoomScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionTitle('Aksiyon Kanalları', Icons.local_fire_department_rounded, Colors.redAccent),
-                      _buildLiveChannelsRow(ref.watch(actionChannelsProvider), context),
+                      _buildSectionTitle(ref.tr('action_channels'), Icons.local_fire_department_rounded, Colors.redAccent),
+                      _buildLiveChannelsRow(ref.watch(actionChannelsProvider), context, ref),
 
                       const SizedBox(height: 40),
 
-                      _buildSectionTitle('Aksiyon Filmleri', Icons.movie_filter_rounded, Colors.white),
+                      _buildSectionTitle(ref.tr('action_movies'), Icons.movie_filter_rounded, Colors.white),
                       ref.watch(actionMoviesProvider).when(
                         data: (matchedMovies) => _buildMatchedMovieRow(matchedMovies, context, ref, Colors.redAccent),
                         loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.redAccent))),
@@ -75,7 +76,7 @@ class ActionRoomScreen extends ConsumerWidget {
 
                       const SizedBox(height: 40),
                       
-                      _buildSectionTitle('Aksiyon Dizileri', Icons.flash_on_rounded, Colors.redAccent),
+                      _buildSectionTitle(ref.tr('action_series'), Icons.flash_on_rounded, Colors.redAccent),
                       ref.watch(actionSeriesProvider).when(
                         data: (matchedSeries) => _buildMatchedSeriesRow(matchedSeries, context, ref, Colors.redAccent),
                         loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.redAccent))),
@@ -108,11 +109,11 @@ class ActionRoomScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context) {
+  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Kanal bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('channel_not_found'), style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 
@@ -174,7 +175,7 @@ class ActionRoomScreen extends ConsumerWidget {
 
   Widget _buildMatchedMovieRow(List<MatchedMovie> items, BuildContext context, WidgetRef ref, Color color) {
     if (items.isEmpty) {
-      return const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('Film bulunamadı.', style: TextStyle(color: AppColors.textSecondary)));
+      return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(ref.tr('movie_not_found'), style: const TextStyle(color: AppColors.textSecondary)));
     }
     return SizedBox(
       height: 220,
@@ -204,7 +205,7 @@ class ActionRoomScreen extends ConsumerWidget {
 
   Widget _buildMatchedSeriesRow(List<MatchedSeries> items, BuildContext context, WidgetRef ref, Color color) {
     if (items.isEmpty) {
-      return const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('Dizi bulunamadı.', style: TextStyle(color: AppColors.textSecondary)));
+      return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(ref.tr('series_not_found'), style: const TextStyle(color: AppColors.textSecondary)));
     }
     return SizedBox(
       height: 220,

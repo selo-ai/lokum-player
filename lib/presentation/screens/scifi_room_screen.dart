@@ -6,6 +6,7 @@ import '../../data/models/tmdb_models.dart';
 import '../widgets/movie_detail_sheet.dart';
 import '../../data/models/iptv_models.dart';
 import '../controllers/vod_matcher_provider.dart';
+import '../controllers/language_provider.dart';
 import 'player_screen.dart';
 
 class ScifiRoomScreen extends ConsumerWidget {
@@ -39,10 +40,10 @@ class ScifiRoomScreen extends ConsumerWidget {
                 elevation: 0,
                 pinned: true,
                 centerTitle: true,
-                title: const Text(
-                  'GALAKSİ VE ÖTESİ',
-                  style: TextStyle(
-                    color: Colors.purpleAccent,
+                title: Text(
+                  ref.tr('home_scifi_room'),
+                  style: const TextStyle(
+                    color: Colors.deepPurpleAccent,
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 2.0,
@@ -61,21 +62,21 @@ class ScifiRoomScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionTitle('Bilim Kurgu Kanalları', Icons.satellite_alt_rounded, Colors.purpleAccent),
-                      _buildLiveChannelsRow(ref.watch(scifiChannelsProvider), context),
+                      _buildSectionTitle(ref.tr('scifi_channels'), Icons.satellite_alt_rounded, Colors.deepPurpleAccent),
+                      _buildLiveChannelsRow(ref.watch(scifiChannelsProvider), context, ref),
 
                       const SizedBox(height: 40),
 
-                      _buildSectionTitle('Bilim Kurgu Filmleri', Icons.rocket_launch_rounded, Colors.indigoAccent),
+                      _buildSectionTitle(ref.tr('scifi_movies'), Icons.public_rounded, Colors.white),
                       ref.watch(scifiMoviesProvider).when(
-                        data: (matchedMovies) => _buildMatchedMovieRow(matchedMovies, context, ref, Colors.indigoAccent),
-                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.indigoAccent))),
+                        data: (matchedMovies) => _buildMatchedMovieRow(matchedMovies, context, ref, Colors.deepPurpleAccent),
+                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.deepPurpleAccent))),
                         error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
                       ),
 
                       const SizedBox(height: 40),
                       
-                      _buildSectionTitle('Bilim Kurgu Dizileri', Icons.language_rounded, Colors.purpleAccent),
+                      _buildSectionTitle(ref.tr('scifi_series'), Icons.rocket_launch_rounded, Colors.deepPurpleAccent),
                       ref.watch(scifiSeriesProvider).when(
                         data: (matchedSeries) => _buildMatchedSeriesRow(matchedSeries, context, ref, Colors.purpleAccent),
                         loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.purpleAccent))),
@@ -108,11 +109,11 @@ class ScifiRoomScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context) {
+  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Kanal bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('channel_not_found'), style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 
@@ -174,7 +175,7 @@ class ScifiRoomScreen extends ConsumerWidget {
 
   Widget _buildMatchedMovieRow(List<MatchedMovie> items, BuildContext context, WidgetRef ref, Color color) {
     if (items.isEmpty) {
-      return const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('Film bulunamadı.', style: TextStyle(color: AppColors.textSecondary)));
+      return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(ref.tr('movie_not_found'), style: const TextStyle(color: AppColors.textSecondary)));
     }
     return SizedBox(
       height: 220,
@@ -204,7 +205,7 @@ class ScifiRoomScreen extends ConsumerWidget {
 
   Widget _buildMatchedSeriesRow(List<MatchedSeries> items, BuildContext context, WidgetRef ref, Color color) {
     if (items.isEmpty) {
-      return const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('Dizi bulunamadı.', style: TextStyle(color: AppColors.textSecondary)));
+      return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(ref.tr('series_not_found'), style: const TextStyle(color: AppColors.textSecondary)));
     }
     return SizedBox(
       height: 220,

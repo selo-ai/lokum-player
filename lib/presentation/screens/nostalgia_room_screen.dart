@@ -6,6 +6,7 @@ import '../../data/models/tmdb_models.dart';
 import '../widgets/movie_detail_sheet.dart';
 import '../../data/models/iptv_models.dart';
 import '../controllers/vod_matcher_provider.dart';
+import '../controllers/language_provider.dart';
 import 'player_screen.dart';
 
 class NostalgiaRoomScreen extends ConsumerWidget {
@@ -39,14 +40,14 @@ class NostalgiaRoomScreen extends ConsumerWidget {
                 elevation: 0,
                 pinned: true,
                 centerTitle: true,
-                title: const Text(
-                  'NOSTALJİ RÜZGARI',
-                  style: TextStyle(
-                    color: Colors.amber,
+                title: Text(
+                  ref.tr('home_nostalgia_room'),
+                  style: const TextStyle(
+                    color: Colors.brown,
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 2.0,
-                    shadows: [Shadow(color: Colors.brown, blurRadius: 10)],
+                    shadows: [Shadow(color: Colors.white24, blurRadius: 10)],
                   ),
                 ),
                 leading: IconButton(
@@ -61,21 +62,21 @@ class NostalgiaRoomScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionTitle('Nostalji Kanalları', Icons.radio_rounded, Colors.amber),
-                      _buildLiveChannelsRow(ref.watch(nostalgiaChannelsProvider), context),
+                      _buildSectionTitle(ref.tr('nostalgia_channels'), Icons.radio_rounded, Colors.brown),
+                      _buildLiveChannelsRow(ref.watch(nostalgiaChannelsProvider), context, ref),
 
                       const SizedBox(height: 40),
 
-                      _buildSectionTitle('Klasik Filmler', Icons.movie_creation_rounded, Colors.amberAccent),
+                      _buildSectionTitle(ref.tr('nostalgia_movies'), Icons.camera_roll_rounded, Colors.white),
                       ref.watch(nostalgiaMoviesProvider).when(
-                        data: (matchedMovies) => _buildMatchedMovieRow(matchedMovies, context, ref, Colors.amberAccent),
-                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.amberAccent))),
+                        data: (matchedMovies) => _buildMatchedMovieRow(matchedMovies, context, ref, Colors.brown),
+                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.brown))),
                         error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
                       ),
 
                       const SizedBox(height: 40),
                       
-                      _buildSectionTitle('Efsane Diziler', Icons.history_edu_rounded, Colors.amber),
+                      _buildSectionTitle(ref.tr('nostalgia_series'), Icons.movie_filter_rounded, Colors.brown),
                       ref.watch(nostalgiaSeriesProvider).when(
                         data: (matchedSeries) => _buildMatchedSeriesRow(matchedSeries, context, ref, Colors.amber),
                         loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.amber))),
@@ -108,11 +109,11 @@ class NostalgiaRoomScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context) {
+  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Kanal bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('channel_not_found'), style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 
@@ -174,7 +175,7 @@ class NostalgiaRoomScreen extends ConsumerWidget {
 
   Widget _buildMatchedMovieRow(List<MatchedMovie> items, BuildContext context, WidgetRef ref, Color color) {
     if (items.isEmpty) {
-      return const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('Film bulunamadı.', style: TextStyle(color: AppColors.textSecondary)));
+      return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(ref.tr('movie_not_found'), style: const TextStyle(color: AppColors.textSecondary)));
     }
     return SizedBox(
       height: 220,
@@ -204,7 +205,7 @@ class NostalgiaRoomScreen extends ConsumerWidget {
 
   Widget _buildMatchedSeriesRow(List<MatchedSeries> items, BuildContext context, WidgetRef ref, Color color) {
     if (items.isEmpty) {
-      return const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('Dizi bulunamadı.', style: TextStyle(color: AppColors.textSecondary)));
+      return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(ref.tr('series_not_found'), style: const TextStyle(color: AppColors.textSecondary)));
     }
     return SizedBox(
       height: 220,

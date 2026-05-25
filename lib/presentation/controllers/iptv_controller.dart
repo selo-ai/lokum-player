@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/asian_content_filter.dart';
+import '../../core/utils/live_tv_categorizer.dart';
 import '../../data/models/iptv_models.dart';
 import 'auth_controller.dart';
 import 'providers.dart';
@@ -138,24 +140,6 @@ class IptvController extends Notifier<IptvState> {
     await _loadData();
   }
 
-  bool _isAsianContent(String text) {
-    if (text.isEmpty) return false;
-    final lower = text.toLowerCase();
-    
-    // Check for Asian characters (Chinese, Japanese, Korean)
-    if (RegExp(r'[\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]').hasMatch(text)) {
-      return true;
-    }
-    
-    // Check for specific keywords in titles/categories
-    final keywords = ['kore', 'korea', 'asya', 'asian', 'japon', 'japan', 'anime', 'uzakdoğu', 'uzak dogu', 'chinese', 'çin'];
-    for (final kw in keywords) {
-      if (RegExp(r'\b' + kw + r'\b').hasMatch(lower)) {
-        return true;
-      }
-    }
-    return false;
-  }
 
   Future<void> _loadData() async {
     final creds = ref.read(authControllerProvider).credentials;
@@ -174,27 +158,23 @@ class IptvController extends Notifier<IptvState> {
 
       final liveCats = [
         IptvCategory(id: '', name: 'Tümü', type: 'live'),
-        ...rawLiveCats.where((c) => !_isAsianContent(c.name)),
+        ...rawLiveCats.where((c) => !AsianContentFilter.isAsianContent(c.name)),
       ];
       final movieCats = [
         IptvCategory(id: '', name: 'Tümü', type: 'movie'),
-        ...rawMovieCats.where((c) => !_isAsianContent(c.name)),
+        ...rawMovieCats.where((c) => !AsianContentFilter.isAsianContent(c.name)),
       ];
       final seriesCats = [
         IptvCategory(id: '', name: 'Tümü', type: 'series'),
-        ...rawSeriesCats.where((c) => !_isAsianContent(c.name)),
+        ...rawSeriesCats.where((c) => !AsianContentFilter.isAsianContent(c.name)),
       ];
 
 
 
       // 2. Fetch All Channels/Movies/Series
-      final rawChannels = await api.getLiveChannels(creds);
-      final rawMovies = await api.getMovies(creds);
-      final rawSeries = await api.getSeries(creds);
-
-      final channels = rawChannels.where((c) => !_isAsianContent(c.name)).toList();
-      final movies = rawMovies.where((m) => !_isAsianContent(m.name)).toList();
-      final series = rawSeries.where((s) => !_isAsianContent(s.name)).toList();
+      final channels = await api.getLiveChannels(creds);
+      final movies = await api.getMovies(creds);
+      final series = await api.getSeries(creds);
 
       // 3. Load Favorites
       final favoriteLiveIds = storage.getFavoriteLiveIds();
@@ -422,7 +402,8 @@ class IptvController extends Notifier<IptvState> {
     return state.liveChannels.where((c) {
       final matchesCategory = catId.isEmpty || c.categoryId == catId;
       final matchesSearch = query.isEmpty || c.name.toLowerCase().contains(query);
-      return matchesCategory && matchesSearch;
+      final matchesAsianFilter = query.isNotEmpty || !AsianContentFilter.isAsianContent(c.name);
+      return matchesCategory && matchesSearch && matchesAsianFilter;
     }).toList();
   }
 
@@ -432,7 +413,8 @@ class IptvController extends Notifier<IptvState> {
     return state.movies.where((m) {
       final matchesCategory = catId.isEmpty || m.categoryId == catId;
       final matchesSearch = query.isEmpty || m.name.toLowerCase().contains(query);
-      return matchesCategory && matchesSearch;
+      final matchesAsianFilter = query.isNotEmpty || !AsianContentFilter.isAsianContent(m.name);
+      return matchesCategory && matchesSearch && matchesAsianFilter;
     }).toList();
   }
 
@@ -442,7 +424,8 @@ class IptvController extends Notifier<IptvState> {
     return state.series.where((s) {
       final matchesCategory = catId.isEmpty || s.categoryId == catId;
       final matchesSearch = query.isEmpty || s.name.toLowerCase().contains(query);
-      return matchesCategory && matchesSearch;
+      final matchesAsianFilter = query.isNotEmpty || !AsianContentFilter.isAsianContent(s.name);
+      return matchesCategory && matchesSearch && matchesAsianFilter;
     }).toList();
   }
 }

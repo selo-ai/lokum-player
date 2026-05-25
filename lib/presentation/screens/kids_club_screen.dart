@@ -6,6 +6,7 @@ import '../../data/models/tmdb_models.dart';
 import '../widgets/movie_detail_sheet.dart';
 import '../../data/models/iptv_models.dart';
 import '../controllers/vod_matcher_provider.dart';
+import '../controllers/language_provider.dart';
 import 'player_screen.dart';
 
 class KidsClubScreen extends ConsumerWidget {
@@ -39,9 +40,9 @@ class KidsClubScreen extends ConsumerWidget {
                 elevation: 0,
                 pinned: true,
                 centerTitle: true,
-                title: const Text(
-                  'ÇOCUK KULÜBÜ',
-                  style: TextStyle(
+                title: Text(
+                  ref.tr('home_kids_club'),
+                  style: const TextStyle(
                     color: Colors.orangeAccent,
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
@@ -61,12 +62,12 @@ class KidsClubScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionTitle('Çocuk Kanalları', Icons.tv_rounded, Colors.orangeAccent),
-                      _buildLiveChannelsRow(ref.watch(kidsChannelsProvider), context),
+                      _buildSectionTitle(ref.tr('kids_channels'), Icons.tv_rounded, Colors.orangeAccent),
+                      _buildLiveChannelsRow(ref.watch(kidsChannelsProvider), context, ref),
 
                       const SizedBox(height: 40),
 
-                      _buildSectionTitle('Çocuk Filmleri', Icons.smart_toy_rounded, Colors.pinkAccent),
+                      _buildSectionTitle(ref.tr('kids_movies'), Icons.smart_toy_rounded, Colors.pinkAccent),
                       ref.watch(kidsMoviesProvider).when(
                         data: (matchedMovies) => _buildMatchedMovieRow(matchedMovies, context, ref, Colors.pinkAccent),
                         loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.pinkAccent))),
@@ -75,7 +76,7 @@ class KidsClubScreen extends ConsumerWidget {
 
                       const SizedBox(height: 40),
                       
-                      _buildSectionTitle('Çizgi Diziler', Icons.cruelty_free_rounded, Colors.orangeAccent),
+                      _buildSectionTitle(ref.tr('kids_series'), Icons.cruelty_free_rounded, Colors.orangeAccent),
                       ref.watch(kidsSeriesProvider).when(
                         data: (matchedSeries) => _buildMatchedSeriesRow(matchedSeries, context, ref, Colors.orangeAccent),
                         loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.orangeAccent))),
@@ -108,11 +109,11 @@ class KidsClubScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context) {
+  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Kanal bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('channel_not_found'), style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 
@@ -174,7 +175,7 @@ class KidsClubScreen extends ConsumerWidget {
 
   Widget _buildMatchedMovieRow(List<MatchedMovie> items, BuildContext context, WidgetRef ref, Color color) {
     if (items.isEmpty) {
-      return const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('Film bulunamadı.', style: TextStyle(color: AppColors.textSecondary)));
+      return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(ref.tr('movie_not_found'), style: const TextStyle(color: AppColors.textSecondary)));
     }
     return SizedBox(
       height: 220,
@@ -204,7 +205,7 @@ class KidsClubScreen extends ConsumerWidget {
 
   Widget _buildMatchedSeriesRow(List<MatchedSeries> items, BuildContext context, WidgetRef ref, Color color) {
     if (items.isEmpty) {
-      return const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('Dizi bulunamadı.', style: TextStyle(color: AppColors.textSecondary)));
+      return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(ref.tr('series_not_found'), style: const TextStyle(color: AppColors.textSecondary)));
     }
     return SizedBox(
       height: 220,

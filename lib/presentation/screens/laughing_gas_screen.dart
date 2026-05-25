@@ -6,6 +6,7 @@ import '../../data/models/tmdb_models.dart';
 import '../widgets/movie_detail_sheet.dart';
 import '../../data/models/iptv_models.dart';
 import '../controllers/vod_matcher_provider.dart';
+import '../controllers/language_provider.dart';
 import 'player_screen.dart';
 
 class LaughingGasScreen extends ConsumerWidget {
@@ -39,9 +40,9 @@ class LaughingGasScreen extends ConsumerWidget {
                 elevation: 0,
                 pinned: true,
                 centerTitle: true,
-                title: const Text(
-                  'GÜLME GAZI',
-                  style: TextStyle(
+                title: Text(
+                  ref.tr('home_laughing_gas'),
+                  style: const TextStyle(
                     color: Colors.amberAccent,
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
@@ -61,21 +62,21 @@ class LaughingGasScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionTitle('Komedi Kanalları', Icons.tv_rounded),
-                      _buildLiveChannelsRow(ref.watch(comedyChannelsProvider), context),
+                      _buildSectionTitle(ref.tr('comedy_channels'), Icons.emoji_emotions_rounded),
+                      _buildLiveChannelsRow(ref.watch(comedyChannelsProvider), context, ref),
 
                       const SizedBox(height: 40),
 
-                      _buildSectionTitle('Komedi Filmleri', Icons.theater_comedy_rounded),
+                      _buildSectionTitle(ref.tr('comedy_movies'), Icons.theater_comedy_rounded),
                       ref.watch(comedyMoviesProvider).when(
                         data: (matchedMovies) => _buildMatchedMovieRow(matchedMovies, context, ref),
-                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.amberAccent))),
+                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.orangeAccent))),
                         error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
                       ),
 
                       const SizedBox(height: 40),
                       
-                      _buildSectionTitle('Komedi Dizileri', Icons.live_tv_rounded),
+                      _buildSectionTitle(ref.tr('comedy_series'), Icons.mood_rounded),
                       ref.watch(comedySeriesProvider).when(
                         data: (matchedSeries) => _buildMatchedSeriesRow(matchedSeries, context, ref),
                         loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.amberAccent))),
@@ -108,11 +109,11 @@ class LaughingGasScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context) {
+  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Kanal bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('channel_not_found'), style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 
@@ -174,9 +175,9 @@ class LaughingGasScreen extends ConsumerWidget {
 
   Widget _buildMatchedMovieRow(List<MatchedMovie> items, BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Komedi filmi bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('movie_not_found'), style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 
@@ -214,9 +215,9 @@ class LaughingGasScreen extends ConsumerWidget {
 
   Widget _buildMatchedSeriesRow(List<MatchedSeries> items, BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Komedi dizisi bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('series_not_found'), style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 

@@ -133,9 +133,9 @@ class _SportsDashboardScreenState extends ConsumerState<SportsDashboardScreen> {
 
   Widget _buildLiveChannelsRow(List<IptvLiveChannel> channels) {
     if (channels.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Spor kanalı bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('channel_not_found'), style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 
@@ -245,9 +245,9 @@ class _SportsDashboardScreenState extends ConsumerState<SportsDashboardScreen> {
 
   Widget _buildMatchedSeriesRow(List<MatchedSeries> items) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Spor dizisi bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('series_not_found'), style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 
@@ -283,9 +283,9 @@ class _SportsDashboardScreenState extends ConsumerState<SportsDashboardScreen> {
 
   Widget _buildMatchedDynamicRow(List<dynamic> items) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Spor belgeseli bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('doc_not_found'), style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 

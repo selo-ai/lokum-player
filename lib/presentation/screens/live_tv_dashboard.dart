@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/colors.dart';
+import '../../data/models/iptv_models.dart';
+import '../../core/utils/asian_content_filter.dart';
 import '../../core/utils/live_tv_categorizer.dart';
 import '../controllers/iptv_controller.dart';
 import 'player_screen.dart';
@@ -31,7 +33,8 @@ class _LiveTvDashboardScreenState extends ConsumerState<LiveTvDashboardScreen> {
     }
 
     // Categorize Data
-    final categorizedData = LiveTvCategorizer.categorize(state.liveChannels, state.liveCategories);
+    final filteredChannels = state.liveChannels.where((c) => !AsianContentFilter.isAsianContent(c.name)).toList();
+    final categorizedData = LiveTvCategorizer.categorize(filteredChannels, state.liveCategories);
 
     if (categorizedData.isEmpty) {
       return const Center(

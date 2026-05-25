@@ -845,13 +845,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Text(
-                                    'ÖNE ÇIKANLAR',
-                                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                  Text(
+                                    ref.tr('dashboard_featured'),
+                                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Trend filmler, diziler ve belgeseller',
+                                    ref.tr('dashboard_featured_desc'),
                                     style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
                                   ),
                                 ],
@@ -872,9 +872,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 24),
-                              if (movieRecommendations.isNotEmpty) _buildHighlightsRow('Trend Filmler', movieRecommendations, state),
-                              if (seriesRecommendations.isNotEmpty) _buildHighlightsRow('Trend Diziler', seriesRecommendations, state),
-                              if (docsRecommendations.isNotEmpty) _buildHighlightsRow('Trend Belgeseller', docsRecommendations, state),
+                              if (movieRecommendations.isNotEmpty) _buildHighlightsRow(ref.tr('home_trend_movies'), movieRecommendations, state),
+                              if (seriesRecommendations.isNotEmpty) _buildHighlightsRow(ref.tr('home_trend_series'), seriesRecommendations, state),
+                              if (docsRecommendations.isNotEmpty) _buildHighlightsRow(ref.tr('home_trend_docs'), docsRecommendations, state),
                             ],
                           ) : const SizedBox(width: double.infinity, height: 0),
                         ),
@@ -898,8 +898,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 16),
           _buildBanner(
             context,
-            'ÇOCUK KULÜBÜ',
-            'Çocuklara özel kanallar, çizgi filmler',
+            ref.tr('home_kids_club'),
+            ref.tr('home_kids_desc'),
             Icons.smart_toy_rounded,
             Colors.orangeAccent,
             const KidsClubScreen(),
@@ -916,8 +916,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 16),
           _buildBanner(
             context,
-            'GÜLME GAZI',
-            'Komedi filmleri ve dizileri',
+            ref.tr('home_laughing_gas'),
+            ref.tr('home_laughing_desc'),
             Icons.emoji_emotions_rounded,
             Colors.amberAccent,
             const LaughingGasScreen(),
@@ -925,8 +925,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 16),
           _buildBanner(
             context,
-            'ADRENALİN BOOM',
-            'Aksiyon ve macera dolu içerikler',
+            ref.tr('home_action_room'),
+            ref.tr('home_action_desc'),
             Icons.local_fire_department_rounded,
             Colors.red,
             const ActionRoomScreen(),
@@ -934,8 +934,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 16),
           _buildBanner(
             context,
-            'GALAKSİ VE ÖTESİ',
-            'Bilim kurgu ve uzay temalı yapımlar',
+            ref.tr('home_scifi_room'),
+            ref.tr('home_scifi_desc'),
             Icons.satellite_alt_rounded,
             Colors.deepPurpleAccent,
             const ScifiRoomScreen(),
@@ -943,8 +943,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 16),
           _buildBanner(
             context,
-            'NOSTALJİ RÜZGARI',
-            'Eski western ve klasik yapımlar',
+            ref.tr('home_nostalgia_room'),
+            ref.tr('home_nostalgia_desc'),
             Icons.radio_rounded,
             Colors.brown,
             const NostalgiaRoomScreen(),

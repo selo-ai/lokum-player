@@ -2,11 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/tmdb_api.dart';
 import '../../data/models/iptv_models.dart';
 import '../../data/models/tmdb_models.dart';
+import '../../core/utils/asian_content_filter.dart';
 import 'iptv_controller.dart';
 
 final trendingMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
   final iptvState = ref.watch(iptvControllerProvider);
-  final iptvMovies = iptvState.movies;
+  final iptvMovies = iptvState.movies.where((m) => !AsianContentFilter.isAsianContent(m.name)).toList();
 
   if (iptvMovies.isEmpty) return [];
 
@@ -43,7 +44,7 @@ final trendingMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
 
 final trendingSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) async {
   final iptvState = ref.watch(iptvControllerProvider);
-  final iptvSeriesList = iptvState.series;
+  final iptvSeriesList = iptvState.series.where((s) => !AsianContentFilter.isAsianContent(s.name)).toList();
 
   if (iptvSeriesList.isEmpty) return [];
 
@@ -83,14 +84,15 @@ final trendingDocumentariesProvider = FutureProvider<List<CarouselMedia>>((ref) 
   final tmdbApi = ref.read(tmdbApiProvider);
   final List<CarouselMedia> matchedDocs = [];
 
-  if (iptvState.movies.isNotEmpty) {
+  final filteredMovies = iptvState.movies.where((m) => !AsianContentFilter.isAsianContent(m.name)).toList();
+  if (filteredMovies.isNotEmpty) {
     final movieDocs = await tmdbApi.getPopularMoviesByGenre(99);
     for (final tmdbMovie in movieDocs) {
       if (tmdbMovie.backdropPath.isEmpty) continue;
       final tmdbName = _cleanName(tmdbMovie.title);
       final tmdbOriginal = _cleanName(tmdbMovie.originalTitle);
       try {
-        final match = iptvState.movies.firstWhere((m) {
+        final match = filteredMovies.firstWhere((m) {
           final iptvName = _cleanName(m.name);
           return iptvName == tmdbName || iptvName == tmdbOriginal || (iptvName.contains(tmdbName) && tmdbName.length > 5);
         });
@@ -101,14 +103,15 @@ final trendingDocumentariesProvider = FutureProvider<List<CarouselMedia>>((ref) 
     }
   }
 
-  if (iptvState.series.isNotEmpty) {
+  final filteredSeries = iptvState.series.where((s) => !AsianContentFilter.isAsianContent(s.name)).toList();
+  if (filteredSeries.isNotEmpty) {
     final seriesDocs = await tmdbApi.getPopularTvShowsByGenre(99);
     for (final tmdbSeries in seriesDocs) {
       if (tmdbSeries.backdropPath.isEmpty) continue;
       final tmdbName = _cleanName(tmdbSeries.name);
       final tmdbOriginal = _cleanName(tmdbSeries.originalName);
       try {
-        final match = iptvState.series.firstWhere((s) {
+        final match = filteredSeries.firstWhere((s) {
           final iptvName = _cleanName(s.name);
           return iptvName == tmdbName || iptvName == tmdbOriginal || (iptvName.contains(tmdbName) && tmdbName.length > 5);
         });
@@ -148,7 +151,7 @@ final mixedCarouselProvider = FutureProvider<List<CarouselMedia>>((ref) async {
 
 final sportsMatchedMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
   final iptvState = ref.watch(iptvControllerProvider);
-  final iptvMovies = iptvState.movies;
+  final iptvMovies = iptvState.movies.where((m) => !AsianContentFilter.isAsianContent(m.name)).toList();
 
   if (iptvMovies.isEmpty) {
     print('VOD Matcher: IPTV movies list is empty, returning early.');
@@ -206,7 +209,7 @@ final sportsMatchedMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) asy
 
 final sportsMatchedSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) async {
   final iptvState = ref.watch(iptvControllerProvider);
-  final iptvSeriesList = iptvState.series;
+  final iptvSeriesList = iptvState.series.where((s) => !AsianContentFilter.isAsianContent(s.name)).toList();
 
   if (iptvSeriesList.isEmpty) return [];
 
@@ -299,7 +302,7 @@ final sportsMatchedDocumentariesProvider = FutureProvider<List<dynamic>>((ref) a
   matched.addAll(existingDocSeries);
 
   // 3. Match new tmdbDocMovies against ALL iptv movies
-  final iptvMovies = iptvState.movies;
+  final iptvMovies = iptvState.movies.where((m) => !AsianContentFilter.isAsianContent(m.name)).toList();
   for (final tmdbMovie in tmdbDocMovies) {
     if (matched.any((m) => m is MatchedMovie && m.tmdbMovie.id == tmdbMovie.id)) continue;
     
@@ -318,7 +321,7 @@ final sportsMatchedDocumentariesProvider = FutureProvider<List<dynamic>>((ref) a
   }
   
   // 4. Match new tmdbDocSeries against ALL iptv series
-  final iptvSeriesList = iptvState.series;
+  final iptvSeriesList = iptvState.series.where((s) => !AsianContentFilter.isAsianContent(s.name)).toList();
   for (final tmdbSeries in tmdbDocSeries) {
     if (matched.any((m) => m is MatchedSeries && m.tmdbSeries.id == tmdbSeries.id)) continue;
     
@@ -355,7 +358,7 @@ final sportsMatchedDocumentariesProvider = FutureProvider<List<dynamic>>((ref) a
 
 final horrorMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
   final iptvState = ref.watch(iptvControllerProvider);
-  final iptvMovies = iptvState.movies;
+  final iptvMovies = iptvState.movies.where((m) => !AsianContentFilter.isAsianContent(m.name)).toList();
 
   if (iptvMovies.isEmpty) return [];
 
@@ -399,7 +402,7 @@ final horrorMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
 
 final horrorSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) async {
   final iptvState = ref.watch(iptvControllerProvider);
-  final iptvSeriesList = iptvState.series;
+  final iptvSeriesList = iptvState.series.where((s) => !AsianContentFilter.isAsianContent(s.name)).toList();
 
   if (iptvSeriesList.isEmpty) return [];
 
@@ -442,7 +445,7 @@ final horrorSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) async {
 
 final comedyMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
   final iptvState = ref.watch(iptvControllerProvider);
-  final iptvMovies = iptvState.movies;
+  final iptvMovies = iptvState.movies.where((m) => !AsianContentFilter.isAsianContent(m.name)).toList();
 
   if (iptvMovies.isEmpty) return [];
 
@@ -484,7 +487,7 @@ final comedyMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
 
 final comedySeriesProvider = FutureProvider<List<MatchedSeries>>((ref) async {
   final iptvState = ref.watch(iptvControllerProvider);
-  final iptvSeriesList = iptvState.series;
+  final iptvSeriesList = iptvState.series.where((s) => !AsianContentFilter.isAsianContent(s.name)).toList();
 
   if (iptvSeriesList.isEmpty) return [];
 
@@ -526,7 +529,8 @@ final comedySeriesProvider = FutureProvider<List<MatchedSeries>>((ref) async {
 // Helper for Movies
 Future<List<MatchedMovie>> _matchMoviesHelper(Ref ref, Future<List<TmdbMovie>> Function(int) fetchPage) async {
   final iptvState = ref.watch(iptvControllerProvider);
-  if (iptvState.movies.isEmpty) return [];
+  final filteredMovies = iptvState.movies.where((m) => !AsianContentFilter.isAsianContent(m.name)).toList();
+  if (filteredMovies.isEmpty) return [];
   final List<TmdbMovie> allTmdbMovies = [];
   for (int i = 1; i <= 5; i++) {
     allTmdbMovies.addAll(await fetchPage(i));
@@ -536,7 +540,7 @@ Future<List<MatchedMovie>> _matchMoviesHelper(Ref ref, Future<List<TmdbMovie>> F
     final tmdbName = _cleanName(tmdbMovie.title);
     final tmdbOriginal = _cleanName(tmdbMovie.originalTitle);
     try {
-      final match = iptvState.movies.firstWhere((iptvMovie) {
+      final match = filteredMovies.firstWhere((iptvMovie) {
         final iptvName = _cleanName(iptvMovie.name);
         return iptvName == tmdbName || iptvName == tmdbOriginal || (iptvName.contains(tmdbName) && tmdbName.length > 5);
       });
@@ -549,7 +553,8 @@ Future<List<MatchedMovie>> _matchMoviesHelper(Ref ref, Future<List<TmdbMovie>> F
 // Helper for Series
 Future<List<MatchedSeries>> _matchSeriesHelper(Ref ref, Future<List<TmdbSeries>> Function(int) fetchPage) async {
   final iptvState = ref.watch(iptvControllerProvider);
-  if (iptvState.series.isEmpty) return [];
+  final filteredSeries = iptvState.series.where((s) => !AsianContentFilter.isAsianContent(s.name)).toList();
+  if (filteredSeries.isEmpty) return [];
   final List<TmdbSeries> allTmdbSeries = [];
   for (int i = 1; i <= 5; i++) {
     allTmdbSeries.addAll(await fetchPage(i));
@@ -559,7 +564,7 @@ Future<List<MatchedSeries>> _matchSeriesHelper(Ref ref, Future<List<TmdbSeries>>
     final tmdbName = _cleanName(tmdbSeries.name);
     final tmdbOriginal = _cleanName(tmdbSeries.originalName);
     try {
-      final match = iptvState.series.firstWhere((iptvSeries) {
+      final match = filteredSeries.firstWhere((iptvSeries) {
         final iptvName = _cleanName(iptvSeries.name);
         return iptvName == tmdbName || iptvName == tmdbOriginal || (iptvName.contains(tmdbName) && tmdbName.length > 5);
       });

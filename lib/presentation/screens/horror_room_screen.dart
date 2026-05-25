@@ -63,7 +63,7 @@ class HorrorRoomScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildSectionTitle(ref.tr('horror_channels'), Icons.tv_rounded),
-                      _buildLiveChannelsRow(ref.watch(horrorChannelsProvider), context),
+                      _buildLiveChannelsRow(ref.watch(horrorChannelsProvider), context, ref),
 
                       const SizedBox(height: 40),
 
@@ -109,11 +109,11 @@ class HorrorRoomScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context) {
+  Widget _buildLiveChannelsRow(List<IptvLiveChannel> items, BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Kanal bulunamadı.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(ref.tr('channel_not_found'), style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 
