@@ -4,6 +4,7 @@ import '../../data/models/iptv_models.dart';
 import '../../data/models/tmdb_models.dart';
 import '../../core/utils/asian_content_filter.dart';
 import 'iptv_controller.dart';
+import 'language_provider.dart';
 
 final trendingMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
   final iptvState = ref.watch(iptvControllerProvider);
@@ -39,6 +40,14 @@ final trendingMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) async {
       }
     } catch (_) {}
   }
+  final appLang = ref.watch(languageProvider);
+  matched.sort((a, b) {
+    final aLang = a.tmdbMovie.originalLanguage;
+    final bLang = b.tmdbMovie.originalLanguage;
+    if (aLang == appLang && bLang != appLang) return -1;
+    if (aLang != appLang && bLang == appLang) return 1;
+    return 0;
+  });
   return matched;
 });
 
@@ -76,6 +85,14 @@ final trendingSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) async {
       }
     } catch (_) {}
   }
+  final appLang = ref.watch(languageProvider);
+  matched.sort((a, b) {
+    final aLang = a.tmdbSeries.originalLanguage;
+    final bLang = b.tmdbSeries.originalLanguage;
+    if (aLang == appLang && bLang != appLang) return -1;
+    if (aLang != appLang && bLang == appLang) return 1;
+    return 0;
+  });
   return matched;
 });
 
@@ -547,6 +564,14 @@ Future<List<MatchedMovie>> _matchMoviesHelper(Ref ref, Future<List<TmdbMovie>> F
       matched.add(MatchedMovie(tmdbMovie: tmdbMovie, streamId: match.streamId, streamIcon: match.icon ?? ''));
     } catch (_) {}
   }
+  final appLang = ref.watch(languageProvider);
+  matched.sort((a, b) {
+    final aLang = a.tmdbMovie.originalLanguage;
+    final bLang = b.tmdbMovie.originalLanguage;
+    if (aLang == appLang && bLang != appLang) return -1;
+    if (aLang != appLang && bLang == appLang) return 1;
+    return 0;
+  });
   return matched;
 }
 
@@ -571,6 +596,14 @@ Future<List<MatchedSeries>> _matchSeriesHelper(Ref ref, Future<List<TmdbSeries>>
       matched.add(MatchedSeries(tmdbSeries: tmdbSeries, seriesId: match.seriesId, cover: match.cover ?? ''));
     } catch (_) {}
   }
+  final appLang = ref.watch(languageProvider);
+  matched.sort((a, b) {
+    final aLang = a.tmdbSeries.originalLanguage;
+    final bLang = b.tmdbSeries.originalLanguage;
+    if (aLang == appLang && bLang != appLang) return -1;
+    if (aLang != appLang && bLang == appLang) return 1;
+    return 0;
+  });
   return matched;
 }
 
@@ -598,6 +631,22 @@ final actionSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) {
 
 final nostalgiaMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) {
   return _matchMoviesHelper(ref, (page) => ref.read(tmdbApiProvider).getClassicMovies(page: page));
+});
+
+final docsChannelsProvider = Provider<List<IptvLiveChannel>>((ref) {
+  final channels = ref.watch(iptvControllerProvider).liveChannels;
+  return channels.where((c) {
+    final lower = c.name.toLowerCase();
+    return lower.contains('belgesel') || lower.contains('docu') || lower.contains('nat geo') || lower.contains('discovery');
+  }).toList();
+});
+
+final docsMoviesProvider = FutureProvider<List<MatchedMovie>>((ref) {
+  return _matchMoviesHelper(ref, (page) => ref.read(tmdbApiProvider).getPopularMoviesByGenre(99, page: page));
+});
+
+final docsSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) {
+  return _matchSeriesHelper(ref, (page) => ref.read(tmdbApiProvider).getPopularTvShowsByGenre(99, page: page));
 });
 final nostalgiaSeriesProvider = FutureProvider<List<MatchedSeries>>((ref) {
   return _matchSeriesHelper(ref, (page) => ref.read(tmdbApiProvider).getClassicSeries(page: page));

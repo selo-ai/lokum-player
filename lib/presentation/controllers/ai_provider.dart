@@ -83,7 +83,7 @@ Kullanıcının İsteği: $prompt
           });
           // For now create a dummy TMDB movie just to hold the data for UI
           matchedMovies.add(MatchedMovie(
-            tmdbMovie: TmdbMovie(id: 0, title: match.name, originalTitle: match.name, overview: '', posterPath: '', backdropPath: '', voteAverage: 0.0, releaseDate: '', genreIds: []),
+            tmdbMovie: TmdbMovie(id: 0, title: match.name, originalTitle: match.name, originalLanguage: '', overview: '', posterPath: '', backdropPath: '', voteAverage: 0.0, releaseDate: '', genreIds: []),
             streamId: match.streamId,
             streamIcon: match.icon ?? '',
           ));
@@ -98,7 +98,7 @@ Kullanıcının İsteği: $prompt
             return c.contains(cleanSName) && cleanSName.length > 3;
           });
           matchedSeries.add(MatchedSeries(
-            tmdbSeries: TmdbSeries(id: 0, name: match.name, originalName: match.name, overview: '', posterPath: '', backdropPath: '', voteAverage: 0.0, firstAirDate: '', genreIds: []),
+            tmdbSeries: TmdbSeries(id: 0, name: match.name, originalName: match.name, originalLanguage: '', overview: '', posterPath: '', backdropPath: '', voteAverage: 0.0, firstAirDate: '', genreIds: []),
             seriesId: match.seriesId,
             cover: match.cover ?? '',
           ));

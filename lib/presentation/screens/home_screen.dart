@@ -24,7 +24,12 @@ import 'laughing_gas_screen.dart';
 import 'kids_club_screen.dart';
 import 'action_room_screen.dart';
 import 'scifi_room_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'thematic_grid_screen.dart';
+import 'search_screen.dart';
+import '../widgets/series_detail_sheet.dart';
 import 'nostalgia_room_screen.dart';
+import 'documentary_room_screen.dart';
 import 'ai_assistant_sheet.dart';
 import 'live_tv_dashboard.dart';
 import '../widgets/movie_detail_sheet.dart';
@@ -87,14 +92,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _showSeriesDetails(BuildContext context, dynamic serie) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      builder: (ctx) {
-        return SeriesDetailSheet(serie: serie);
-      },
+    showSeriesDetailSheet(
+      context, 
+      seriesId: serie.seriesId, 
+      name: serie.name, 
+      posterUrl: serie.cover,
+      description: serie.plot,
+      rating: serie.rating,
+      year: serie.releaseDate,
     );
   }
 
@@ -408,17 +413,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       mediaId: streamId,
                       name: titleText,
                       posterUrl: imagePath,
-                      description: isMovie ? (tmdbData as TmdbMovie).overview : null,
-                      year: isMovie 
-                          ? ((tmdbData as TmdbMovie).releaseDate.length >= 4 ? (tmdbData as TmdbMovie).releaseDate.substring(0, 4) : null)
-                          : null,
+                      description: (tmdbData as TmdbMovie).overview,
+                      year: ((tmdbData as TmdbMovie).releaseDate.length >= 4 ? (tmdbData as TmdbMovie).releaseDate.substring(0, 4) : null),
                       rating: voteAverage.toStringAsFixed(1),
                     );
                   } else {
-                    try {
-                      final iptvSeries = state.series.firstWhere((s) => s.seriesId == streamId);
-                      _showSeriesDetails(context, iptvSeries);
-                    } catch (_) {}
+                    showSeriesDetailSheet(
+                      context,
+                      seriesId: streamId,
+                      name: titleText,
+                      posterUrl: imagePath,
+                      description: (tmdbData as TmdbSeries).overview,
+                      rating: voteAverage.toStringAsFixed(1),
+                      year: (tmdbData as TmdbSeries).firstAirDate.length >= 4 
+                          ? (tmdbData as TmdbSeries).firstAirDate.substring(0, 4) 
+                          : null,
+                    );
                   }
                 },
                 child: Container(
@@ -615,9 +625,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     // Search Placeholder Button
                     GestureDetector(
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(ref.tr('search_coming_soon'))),
-                        );
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen()));
                       },
                       behavior: HitTestBehavior.opaque,
                       child: Container(
@@ -693,10 +701,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               rating: item.voteAverage.toStringAsFixed(1),
                             );
                           } else {
-                            try {
-                              final iptvSeries = state.series.firstWhere((s) => s.seriesId == item.streamId);
-                              _showSeriesDetails(context, iptvSeries);
-                            } catch (_) {}
+                            showSeriesDetailSheet(
+                              context,
+                              seriesId: item.streamId,
+                              name: item.title,
+                              posterUrl: item.coverOrIcon,
+                              description: item.tmdbData is TmdbSeries ? (item.tmdbData as TmdbSeries).overview : null,
+                              rating: item.voteAverage.toStringAsFixed(1),
+                              year: item.releaseDate.length >= 4 
+                                  ? item.releaseDate.substring(0, 4) 
+                                  : null,
+                            );
                           }
                         },
                         child: Container(
@@ -951,6 +966,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Icons.radio_rounded,
             Colors.brown,
             const NostalgiaRoomScreen(),
+          ),
+          const SizedBox(height: 16),
+          _buildBanner(
+            context,
+            ref.tr('home_curious_minds'),
+            ref.tr('home_curious_minds_desc'),
+            Icons.explore_rounded,
+            Colors.teal,
+            const DocumentaryRoomScreen(),
           ),
           const SizedBox(height: 28),
           // Watch History ("Son İzlenenler")

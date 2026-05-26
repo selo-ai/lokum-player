@@ -1,139 +1,25 @@
-import 'dart:ui';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../core/constants/colors.dart';
-import '../../data/models/iptv_models.dart';
-import '../../data/models/tmdb_models.dart';
-import '../controllers/iptv_controller.dart';
-import '../controllers/providers.dart';
-import '../controllers/sports_provider.dart';
-import '../controllers/vod_matcher_provider.dart';
-import '../controllers/language_provider.dart';
-import '../widgets/glass_container.dart';
-import 'player_screen.dart';
-import 'thematic_grid_screen.dart';
-import '../widgets/movie_detail_sheet.dart';
-import '../widgets/series_detail_sheet.dart';
+import os
+import re
 
-class SportsDashboardScreen extends ConsumerStatefulWidget {
-  const SportsDashboardScreen({super.key});
+path = 'lib/presentation/screens/sports_dashboard_screen.dart'
+with open(path, 'r', encoding='utf-8') as f:
+    content = f.read()
 
-  @override
-  ConsumerState<SportsDashboardScreen> createState() => _SportsDashboardScreenState();
-}
+# Add import
+if "import 'thematic_grid_screen.dart';" not in content:
+    content = content.replace("import 'player_screen.dart';", "import 'player_screen.dart';\nimport 'thematic_grid_screen.dart';")
 
-class _SportsDashboardScreenState extends ConsumerState<SportsDashboardScreen> {
+# Update callers
+content = content.replace("_buildLiveChannelsRow(liveChannels)", "_buildLiveChannelsRow('Canlı Yayınlar', liveChannels)")
+content = content.replace("_buildMatchedDynamicRow(items)", "_buildMatchedDynamicRow('Belgeseller', items)")
+content = content.replace("_buildMatchedVodRow(items)", "_buildMatchedVodRow(ref.tr('sports_vod_movies'), items)")
+content = content.replace("_buildMatchedSeriesRow(items)", "_buildMatchedSeriesRow('Diziler', items)")
 
-  @override
-  Widget build(BuildContext context) {
-    final liveChannels = ref.watch(sportsLiveChannelsProvider);
-    final movies = ref.watch(sportsMoviesProvider);
-    final series = ref.watch(sportsSeriesProvider);
-
-    return Scaffold(
-      backgroundColor: Colors.black, // Dark theme like horror room
-      body: Stack(
-        children: [
-          // Background Gradient (Green/Black)
-          Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.topCenter,
-                radius: 2.5,
-                colors: [
-                  AppColors.success.withOpacity(0.3),
-                  Colors.black,
-                  Colors.black,
-                ],
-              ),
-            ),
-          ),
-          
-          CustomScrollView(
-            slivers: [
-              // Custom App Bar
-              SliverAppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                pinned: true,
-                centerTitle: true,
-                title: Text(
-                  ref.tr('home_sports_center'),
-                  style: const TextStyle(
-                    color: AppColors.success,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2.0,
-                    shadows: [Shadow(color: AppColors.success, blurRadius: 10)],
-                  ),
-                ),
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ),
-
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 20, bottom: 40),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionTitle('Canlı Yayınlar', Icons.stream_rounded, AppColors.success),
-                      _buildLiveChannelsRow('Canlı Yayınlar', liveChannels),
-
-                      const SizedBox(height: 30),
-                      _buildSectionTitle('Belgeseller', Icons.camera_roll_rounded, AppColors.warning),
-                      ref.watch(sportsMatchedDocumentariesProvider).when(
-                        data: (items) => _buildMatchedDynamicRow('Belgeseller', items),
-                        loading: () => const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: AppColors.warning))),
-                        error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
-                      ),
-
-                      const SizedBox(height: 30),
-                      _buildSectionTitle(ref.tr('sports_vod_movies'), Icons.movie_creation_rounded, AppColors.accent),
-                      ref.watch(sportsMatchedOnlyMoviesProvider).when(
-                        data: (items) => _buildMatchedVodRow(ref.tr('sports_vod_movies'), items),
-                        loading: () => const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: AppColors.accent))),
-                        error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
-                      ),
-
-                      const SizedBox(height: 30),
-                      _buildSectionTitle('Diziler', Icons.video_library_rounded, Color(0xFFFF4081)),
-                      ref.watch(sportsMatchedOnlySeriesProvider).when(
-                        data: (items) => _buildMatchedSeriesRow('Diziler', items),
-                        loading: () => const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: Color(0xFFFF4081)))),
-                        error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title, IconData icon, Color iconColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Row(
-        children: [
-          Icon(icon, color: iconColor, size: 22),
-          const SizedBox(width: 10),
-          Text(
-            title,
-            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLiveChannelsRow(String title, List<IptvLiveChannel> items) {
+# Replace builders from `Widget _buildSectionTitle` to end of file (wait, `_buildSectionTitle` is used above).
+# We will replace from `Widget _buildLiveChannelsRow` up to the end of the file.
+start_idx = content.find("  Widget _buildLiveChannelsRow")
+if start_idx != -1:
+    NEW_METHODS = """  Widget _buildLiveChannelsRow(String title, List<IptvLiveChannel> items) {
     if (items.isEmpty) return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text('Canlı yayın bulunamadı', style: const TextStyle(color: AppColors.textSecondary)));
     final int displayCount = items.length > 15 ? 15 : items.length;
     final bool showAll = items.length > 15;
@@ -188,7 +74,7 @@ class _SportsDashboardScreenState extends ConsumerState<SportsDashboardScreen> {
             final tmdb = matched.tmdbSeries;
             return _buildPosterCard(
               context: context, title: tmdb.name, posterUrl: tmdb.posterUrl, voteAverage: tmdb.voteAverage, color: AppColors.warning,
-              onTap: () => showSeriesDetailSheet(context, seriesId: matched.seriesId, name: tmdb.name, posterUrl: tmdb.posterUrl, description: tmdb.overview, rating: tmdb.voteAverage.toStringAsFixed(1), year: tmdb.firstAirDate.length >= 4 ? tmdb.firstAirDate.substring(0, 4) : null),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PlayerScreen(mediaId: matched.seriesId, mediaName: tmdb.name, mediaType: 'series'))),
             );
           }
           return const SizedBox();
@@ -236,7 +122,7 @@ class _SportsDashboardScreenState extends ConsumerState<SportsDashboardScreen> {
           final tmdb = matched.tmdbSeries;
           return _buildPosterCard(
             context: context, title: tmdb.name, posterUrl: tmdb.posterUrl, voteAverage: tmdb.voteAverage, color: const Color(0xFFFF4081),
-            onTap: () => showSeriesDetailSheet(context, seriesId: matched.seriesId, name: tmdb.name, posterUrl: tmdb.posterUrl, description: tmdb.overview, rating: tmdb.voteAverage.toStringAsFixed(1), year: tmdb.firstAirDate.length >= 4 ? tmdb.firstAirDate.substring(0, 4) : null),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PlayerScreen(mediaId: matched.seriesId, mediaName: tmdb.name, mediaType: 'series'))),
           );
         },
       ),
@@ -297,3 +183,9 @@ class _SportsDashboardScreenState extends ConsumerState<SportsDashboardScreen> {
     );
   }
 }
+"""
+    content = content[:start_idx] + NEW_METHODS
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+print("Sports Refactored")

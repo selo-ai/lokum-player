@@ -1,5 +1,11 @@
 class AsianContentFilter {
-  static bool isAsianContent(String? text) {
+  static bool isAsianContent(String? text, {String? originalLanguage}) {
+    if (originalLanguage != null) {
+      final lang = originalLanguage.toLowerCase();
+      final restrictedLangs = ['hi', 'te', 'ta', 'ml', 'kn', 'bn', 'ja', 'ko', 'zh'];
+      if (restrictedLangs.contains(lang)) return true;
+    }
+
     if (text == null || text.isEmpty) return false;
     final lower = text.toLowerCase();
     
@@ -9,7 +15,7 @@ class AsianContentFilter {
     }
     
     // Check for specific keywords in titles/categories
-    final keywords = ['kore', 'korea', 'asya', 'asian', 'japon', 'japan', 'anime', 'uzakdoğu', 'uzak dogu', 'chinese', 'çin'];
+    final keywords = ['kore', 'korea', 'asya', 'asian', 'japon', 'japan', 'anime', 'uzakdoğu', 'uzak dogu', 'chinese', 'çin', 'hint', 'indian', 'bollywood', 'hindi', 'telugu', 'tamil'];
     for (final kw in keywords) {
       if (RegExp(r'\b' + kw + r'\b').hasMatch(lower)) {
         return true;

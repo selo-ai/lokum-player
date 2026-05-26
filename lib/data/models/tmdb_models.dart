@@ -2,6 +2,7 @@ class TmdbMovie {
   final int id;
   final String title;
   final String originalTitle;
+  final String originalLanguage;
   final String overview;
   final String posterPath;
   final String backdropPath;
@@ -13,6 +14,7 @@ class TmdbMovie {
     required this.id,
     required this.title,
     required this.originalTitle,
+    required this.originalLanguage,
     required this.overview,
     required this.posterPath,
     required this.backdropPath,
@@ -26,6 +28,7 @@ class TmdbMovie {
       id: json['id'] ?? 0,
       title: json['title'] ?? '',
       originalTitle: json['original_title'] ?? '',
+      originalLanguage: json['original_language'] ?? '',
       overview: json['overview'] ?? '',
       posterPath: json['poster_path'] ?? '',
       backdropPath: json['backdrop_path'] ?? '',
@@ -55,6 +58,7 @@ class TmdbSeries {
   final int id;
   final String name;
   final String originalName;
+  final String originalLanguage;
   final String overview;
   final String posterPath;
   final String backdropPath;
@@ -66,6 +70,7 @@ class TmdbSeries {
     required this.id,
     required this.name,
     required this.originalName,
+    required this.originalLanguage,
     required this.overview,
     required this.posterPath,
     required this.backdropPath,
@@ -79,6 +84,7 @@ class TmdbSeries {
       id: json['id'] ?? 0,
       name: json['name'] ?? '',
       originalName: json['original_name'] ?? '',
+      originalLanguage: json['original_language'] ?? '',
       overview: json['overview'] ?? '',
       posterPath: json['poster_path'] ?? '',
       backdropPath: json['backdrop_path'] ?? '',

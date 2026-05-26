@@ -1,117 +1,20 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../core/constants/colors.dart';
-import '../../data/models/tmdb_models.dart';
-import '../widgets/movie_detail_sheet.dart';
-import '../widgets/series_detail_sheet.dart';
-import '../../data/models/iptv_models.dart';
-import '../controllers/vod_matcher_provider.dart';
-import '../controllers/language_provider.dart';
-import 'player_screen.dart';
-import 'thematic_grid_screen.dart';
+import os
+import re
 
-class HorrorRoomScreen extends ConsumerWidget {
-  const HorrorRoomScreen({super.key});
+SCREENS_DIR = 'lib/presentation/screens'
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      backgroundColor: Colors.black, // Dark theme for horror
-      body: Stack(
-        children: [
-          // Background Gradient (Dark Red/Black)
-          Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.topCenter,
-                radius: 2.5,
-                colors: [
-                  Colors.red.withOpacity(0.3),
-                  Colors.black,
-                  Colors.black,
-                ],
-              ),
-            ),
-          ),
-          
-          CustomScrollView(
-            slivers: [
-              SliverAppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                pinned: true,
-                centerTitle: true,
-                title: Text(
-                  ref.tr('home_horror_room'),
-                  style: const TextStyle(
-                    color: Colors.redAccent,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2.0,
-                    shadows: [Shadow(color: Colors.red, blurRadius: 10)],
-                  ),
-                ),
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
+screens = [
+    'action_room_screen.dart',
+    'documentary_room_screen.dart',
+    'horror_room_screen.dart',
+    'kids_club_screen.dart',
+    'laughing_gas_screen.dart',
+    'nostalgia_room_screen.dart',
+    'scifi_room_screen.dart',
+    'sports_dashboard_screen.dart'
+]
 
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 20, bottom: 40),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionTitle(ref.tr('horror_channels'), Icons.tv_rounded),
-                      _buildLiveChannelsRow(ref.tr('horror_channels'), ref.watch(horrorChannelsProvider), context, ref),
-
-                      const SizedBox(height: 40),
-
-                      _buildSectionTitle(ref.tr('horror_movies'), Icons.movie_creation_rounded),
-                      ref.watch(horrorMoviesProvider).when(
-                        data: (matchedMovies) => _buildMatchedMovieRow(ref.tr('horror_movies'), matchedMovies, context, ref, Colors.redAccent),
-                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.redAccent))),
-                        error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
-                      ),
-
-                      const SizedBox(height: 40),
-                      
-                      _buildSectionTitle(ref.tr('horror_series'), Icons.live_tv_rounded),
-                      ref.watch(horrorSeriesProvider).when(
-                        data: (matchedSeries) => _buildMatchedSeriesRow(ref.tr('horror_series'), matchedSeries, context, ref, Colors.redAccent),
-                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.redAccent))),
-                        error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.redAccent, size: 24),
-          const SizedBox(width: 10),
-          Text(
-            title,
-            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
-
+NEW_METHODS = """
   Widget _buildLiveChannelsRow(String title, List<IptvLiveChannel> items, BuildContext context, WidgetRef ref) {
     if (items.isEmpty) return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(ref.tr('channel_not_found'), style: const TextStyle(color: AppColors.textSecondary)));
     final int displayCount = items.length > 15 ? 15 : items.length;
@@ -183,7 +86,7 @@ class HorrorRoomScreen extends ConsumerWidget {
           final tmdb = matched.tmdbSeries;
           return _buildPosterCard(
             context: context, title: tmdb.name, posterUrl: tmdb.posterUrl, voteAverage: tmdb.voteAverage, color: color,
-            onTap: () => showSeriesDetailSheet(context, seriesId: matched.seriesId, name: tmdb.name, posterUrl: tmdb.posterUrl, description: tmdb.overview, rating: tmdb.voteAverage.toStringAsFixed(1), year: tmdb.firstAirDate.length >= 4 ? tmdb.firstAirDate.substring(0, 4) : null),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PlayerScreen(mediaId: matched.seriesId, mediaName: tmdb.name, mediaType: 'series'))),
           );
         },
       ),
@@ -244,3 +147,65 @@ class HorrorRoomScreen extends ConsumerWidget {
     );
   }
 }
+"""
+
+for screen in screens:
+    path = os.path.join(SCREENS_DIR, screen)
+    if not os.path.exists(path):
+        continue
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # 1. Add import
+    if "import 'thematic_grid_screen.dart';" not in content:
+        content = content.replace("import 'player_screen.dart';", "import 'player_screen.dart';\nimport 'thematic_grid_screen.dart';")
+    
+    # 2. Update function calls
+    # For _buildLiveChannelsRow
+    # Find: _buildLiveChannelsRow(ref.watch(...), context, ref)
+    # But wait, we need to extract the title from the previous _buildSectionTitle call!
+    # A regex to match _buildSectionTitle(ref.tr('KEY'), ...) and then _buildLiveChannelsRow
+    
+    def replacer(match):
+        title_call = match.group(1) # ref.tr('action_channels')
+        rest = match.group(2) # , context, ref) or anything between
+        call_name = match.group(3) # _buildLiveChannelsRow or _buildMatchedMovieRow
+        args = match.group(4)
+        if call_name == '_buildLiveChannelsRow':
+            return f"_buildSectionTitle({title_call}{rest}\n                      {call_name}({title_call}, {args}"
+        else:
+            return match.group(0) # Not handled here
+            
+    # Actually, the regex approach is tricky. Let's just do a simpler replacement for each known type.
+    
+    # Let's find all `_buildSectionTitle(ref.tr('...'), ...)` and extract the key.
+    titles = re.findall(r"_buildSectionTitle\(ref\.tr\('([^']+)'\)", content)
+    
+    for title_key in titles:
+        # if 'channels' in title_key or 'live' in title_key:
+        content = re.sub(
+            r"_buildSectionTitle\(ref\.tr\('" + title_key + r"'\)(.*?)\n(.*?)_buildLiveChannelsRow\((.*?)\)",
+            r"_buildSectionTitle(ref.tr('" + title_key + r"')\1\n\2_buildLiveChannelsRow(ref.tr('" + title_key + r"'), \3)",
+            content, flags=re.DOTALL
+        )
+        content = re.sub(
+            r"_buildSectionTitle\(ref\.tr\('" + title_key + r"'\)(.*?)\n(.*?)_buildMatchedMovieRow\((.*?)\)",
+            r"_buildSectionTitle(ref.tr('" + title_key + r"')\1\n\2_buildMatchedMovieRow(ref.tr('" + title_key + r"'), \3)",
+            content, flags=re.DOTALL
+        )
+        content = re.sub(
+            r"_buildSectionTitle\(ref\.tr\('" + title_key + r"'\)(.*?)\n(.*?)_buildMatchedSeriesRow\((.*?)\)",
+            r"_buildSectionTitle(ref.tr('" + title_key + r"')\1\n\2_buildMatchedSeriesRow(ref.tr('" + title_key + r"'), \3)",
+            content, flags=re.DOTALL
+        )
+    
+    # 3. Replace the entire bottom section containing the function definitions
+    # Find `Widget _buildLiveChannelsRow` up to the end of the file.
+    start_idx = content.find("  Widget _buildLiveChannelsRow")
+    if start_idx != -1:
+        content = content[:start_idx] + NEW_METHODS
+        
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+print("Refactoring complete.")

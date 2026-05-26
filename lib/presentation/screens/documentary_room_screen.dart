@@ -11,24 +11,24 @@ import '../controllers/language_provider.dart';
 import 'player_screen.dart';
 import 'thematic_grid_screen.dart';
 
-class HorrorRoomScreen extends ConsumerWidget {
-  const HorrorRoomScreen({super.key});
+class DocumentaryRoomScreen extends ConsumerWidget {
+  const DocumentaryRoomScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: Colors.black, // Dark theme for horror
+      backgroundColor: Colors.black, // Dark theme base
       body: Stack(
         children: [
-          // Background Gradient (Dark Red/Black)
+          // Background Gradient
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment.topCenter,
                 radius: 2.5,
                 colors: [
-                  Colors.red.withOpacity(0.3),
-                  Colors.black,
+                  Colors.teal.withValues(alpha: 0.5),
+                  Colors.black87,
                   Colors.black,
                 ],
               ),
@@ -43,9 +43,9 @@ class HorrorRoomScreen extends ConsumerWidget {
                 pinned: true,
                 centerTitle: true,
                 title: Text(
-                  ref.tr('home_horror_room'),
+                  ref.tr('home_curious_minds'),
                   style: const TextStyle(
-                    color: Colors.redAccent,
+                    color: Colors.tealAccent,
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 2.0,
@@ -64,24 +64,22 @@ class HorrorRoomScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionTitle(ref.tr('horror_channels'), Icons.tv_rounded),
-                      _buildLiveChannelsRow(ref.tr('horror_channels'), ref.watch(horrorChannelsProvider), context, ref),
-
-                      const SizedBox(height: 40),
-
-                      _buildSectionTitle(ref.tr('horror_movies'), Icons.movie_creation_rounded),
-                      ref.watch(horrorMoviesProvider).when(
-                        data: (matchedMovies) => _buildMatchedMovieRow(ref.tr('horror_movies'), matchedMovies, context, ref, Colors.redAccent),
-                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.redAccent))),
-                        error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
-                      ),
-
-                      const SizedBox(height: 40),
+                      _buildSectionTitle(ref.tr('docs_channels'), Icons.explore_rounded, Colors.tealAccent),
+                      _buildLiveChannelsRow(ref.tr('docs_channels'), ref.watch(docsChannelsProvider), context, ref),
+                      const SizedBox(height: 24),
                       
-                      _buildSectionTitle(ref.tr('horror_series'), Icons.live_tv_rounded),
-                      ref.watch(horrorSeriesProvider).when(
-                        data: (matchedSeries) => _buildMatchedSeriesRow(ref.tr('horror_series'), matchedSeries, context, ref, Colors.redAccent),
-                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.redAccent))),
+                      _buildSectionTitle(ref.tr('docs_movies'), Icons.movie_filter_rounded, Colors.white),
+                      ref.watch(docsMoviesProvider).when(
+                        data: (movies) => _buildMatchedMovieRow(ref.tr('docs_movies'), movies, context, ref, Colors.tealAccent),
+                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.tealAccent))),
+                        error: (_, __) => const SizedBox(),
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      _buildSectionTitle(ref.tr('docs_series'), Icons.layers_rounded, Colors.tealAccent),
+                      ref.watch(docsSeriesProvider).when(
+                        data: (matchedSeries) => _buildMatchedSeriesRow(ref.tr('docs_series'), matchedSeries, context, ref, Colors.tealAccent),
+                        loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: Colors.tealAccent))),
                         error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Hata: $err', style: const TextStyle(color: Colors.white))),
                       ),
                     ],
@@ -95,12 +93,12 @@ class HorrorRoomScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionTitle(String title, IconData icon) {
+  Widget _buildSectionTitle(String title, IconData icon, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
         children: [
-          Icon(icon, color: Colors.redAccent, size: 24),
+          Icon(icon, color: color, size: 24),
           const SizedBox(width: 10),
           Text(
             title,
