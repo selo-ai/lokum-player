@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/logging/app_log.dart';
 import '../../data/models/iptv_models.dart';
 import 'auth_controller.dart';
 import 'providers.dart';
@@ -183,8 +184,8 @@ class IptvController extends Notifier<IptvState> {
         selectedSeriesCategoryId: 'RECENTLY_ADDED_CUSTOM_ID',
       );
     } catch (e, stack) {
-      print('IPTV Controller Error: loadAllContent exception: $e');
-      print(stack);
+      appLog('IPTV Controller Error: loadAllContent exception: $e');
+      appLog(stack);
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'İçerik yüklenirken hata oluştu: ${e.toString()}',

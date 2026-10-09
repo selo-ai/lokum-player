@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/iptv_models.dart';
 
@@ -13,6 +15,7 @@ class LocalStorage {
   static const String _keyRecentCount = 'recent_items_count';
 
   late Box _box;
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
 
   Future<void> init() async {
     await Hive.initFlutter();
@@ -20,17 +23,30 @@ class LocalStorage {
   }
 
   // --- Credentials ---
+  // Playlist username and password live in the platform keystore
+  // (Keychain / Android Keystore), never in the plain Hive box.
   Future<void> saveCredentials(IptvCredentials creds) async {
-    await _box.put(_keyCredentials, creds.toJson());
+    await _secure.write(key: _keyCredentials, value: jsonEncode(creds.toJson()));
   }
 
-  IptvCredentials? getCredentials() {
-    final raw = _box.get(_keyCredentials);
+  Future<IptvCredentials?> getCredentials() async {
+    await _migrateLegacyCredentials();
+    final raw = await _secure.read(key: _keyCredentials);
     if (raw == null) return null;
-    return IptvCredentials.fromJson(Map<String, dynamic>.from(raw));
+    return IptvCredentials.fromJson(Map<String, dynamic>.from(jsonDecode(raw)));
+  }
+
+  // Earlier versions stored credentials in Hive; move them once and wipe them.
+  Future<void> _migrateLegacyCredentials() async {
+    final legacy = _box.get(_keyCredentials);
+    if (legacy == null) return;
+    final creds = IptvCredentials.fromJson(Map<String, dynamic>.from(legacy));
+    await saveCredentials(creds);
+    await _box.delete(_keyCredentials);
   }
 
   Future<void> clearCredentials() async {
+    await _secure.delete(key: _keyCredentials);
     await _box.delete(_keyCredentials);
     await _box.delete(_keyFavoritesLive);
     await _box.delete(_keyFavoritesMovie);

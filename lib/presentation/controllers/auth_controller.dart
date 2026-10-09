@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/logging/app_log.dart';
 import '../../data/models/iptv_models.dart';
 import 'providers.dart';
 
@@ -38,9 +39,11 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> checkStoredCredentials() async {
     final storage = ref.read(localStorageProvider);
-    final creds = storage.getCredentials();
+    final creds = await storage.getCredentials();
     
     if (creds != null && creds.isXtream) {
+      registerLogSecret(creds.username);
+      registerLogSecret(creds.password);
       state = state.copyWith(status: AuthStatus.loading);
       final api = ref.read(iptvApiProvider);
       final authenticatedCreds = await api.authenticate(creds);
@@ -99,6 +102,9 @@ class AuthController extends Notifier<AuthState> {
       username: username.trim(),
       password: password.trim(),
     );
+
+    registerLogSecret(creds.username);
+    registerLogSecret(creds.password);
 
     final api = ref.read(iptvApiProvider);
     final storage = ref.read(localStorageProvider);

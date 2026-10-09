@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/colors.dart';
 import '../../data/models/iptv_models.dart';
+import '../../domain/catalog/catalog_rules.dart';
 import '../controllers/iptv_controller.dart';
 import '../controllers/providers.dart';
 import '../controllers/language_provider.dart';
@@ -19,31 +20,6 @@ class FavoritesScreen extends ConsumerStatefulWidget {
 
 class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   int _selectedFavoritesTab = 0;
-
-  String _normalizeCategoryName(String text) {
-    return text
-        .toLowerCase()
-        .replaceAll('ı', 'i')
-        .replaceAll('i̇', 'i')
-        .replaceAll('ğ', 'g')
-        .replaceAll('ü', 'u')
-        .replaceAll('ş', 's')
-        .replaceAll('ö', 'o')
-        .replaceAll('ç', 'c');
-  }
-
-  bool _isDailySeriesCategory(String name) {
-    final norm = _normalizeCategoryName(name);
-    return norm.contains('pazartesi') || 
-           norm.contains('sali') || 
-           norm.contains('carsamba') || 
-           norm.contains('persembe') || 
-           norm.contains('cuma') || 
-           norm.contains('cumartesi') || 
-           norm.contains('pazar') || 
-           norm.contains('gunluk') || 
-           norm.contains('daily');
-  }
 
   void _showSeriesDetails(BuildContext context, dynamic serie) {
     showModalBottomSheet(
@@ -177,7 +153,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     final state = ref.watch(iptvControllerProvider);
 
     final dailySeriesCategoryIds = state.movieCategories
-        .where((cat) => _isDailySeriesCategory(cat.name))
+        .where((cat) => isDailySeriesCategory(cat.name))
         .map((cat) => cat.id)
         .toSet();
 
@@ -234,7 +210,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   Widget _buildLiveFavorites(List<IptvLiveChannel> list) {
     if (list.isEmpty) return _buildEmptyState('Live TV');
 
-    final groupedList = _groupChannels(list);
+    final groupedList = groupChannelVariants(list);
 
     return ListView.builder(
       padding: const EdgeInsets.only(left: 20, right: 20, top: 8, bottom: 100),
@@ -244,39 +220,6 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
         return GroupedChannelTile(group: group);
       },
     );
-  }
-
-  List<GroupedLiveChannel> _groupChannels(List<IptvLiveChannel> channels) {
-    final Map<String, List<IptvLiveChannel>> groups = {};
-    for (final channel in channels) {
-      final groupKey = '${channel.categoryId}_${channel.baseName}';
-      groups.putIfAbsent(groupKey, () => []).add(channel);
-    }
-
-    final priority = ['fhd', '1080p', 'hd', '720p', 'hq', 'hevc', 'h265', 'sd', 'yedek', 'backup', 'alt'];
-    int getPriority(String label) {
-      final cleaned = label.toLowerCase();
-      for (int i = 0; i < priority.length; i++) {
-        if (cleaned.contains(priority[i])) {
-          return i;
-        }
-      }
-      return priority.length;
-    }
-
-    final List<GroupedLiveChannel> groupedList = [];
-    groups.forEach((groupKey, variations) {
-      variations.sort((a, b) {
-        final pA = getPriority(a.qualityLabel);
-        final pB = getPriority(b.qualityLabel);
-        if (pA != pB) return pA.compareTo(pB);
-        return a.displayName.compareTo(b.displayName);
-      });
-      groupedList.add(GroupedLiveChannel(baseName: variations.first.baseName, variations: variations));
-    });
-
-    groupedList.sort((a, b) => a.mainChannel.num.compareTo(b.mainChannel.num));
-    return groupedList;
   }
 
   // --- Movie Favorites View ---
