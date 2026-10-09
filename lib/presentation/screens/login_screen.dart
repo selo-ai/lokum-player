@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
+import '../../data/parsers/xtream_link.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/language_provider.dart';
 import '../widgets/glass_container.dart';
@@ -26,6 +27,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // A pasted get.php / player_api.php link already holds the username and
+  // password, so split it into the three fields.
+  void _fillFromPastedLink(String value) {
+    final link = XtreamLink.tryParse(value);
+    if (link == null) return;
+    _serverController.text = link.serverUrl;
+    _usernameController.text = link.username;
+    _passwordController.text = link.password;
   }
 
   Future<void> _handleLogin() async {
@@ -137,6 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           // Server URL Input
                           TextFormField(
                             controller: _serverController,
+                            onChanged: _fillFromPastedLink,
                             keyboardType: TextInputType.url,
                             textInputAction: TextInputAction.next,
                             decoration: InputDecoration(
